@@ -9,11 +9,8 @@ struct PanelBackground: ViewModifier {
         let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
 
         content
-            .background(.regularMaterial)
+            .background(.thinMaterial)
             .clipShape(shape)
-            .overlay {
-                shape.strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
-            }
     }
 }
 
