@@ -60,11 +60,11 @@ struct ClipCardView: View {
         HStack(alignment: .top, spacing: 8) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(clip.kind.rawValue)
-                    .font(.system(size: 15, weight: .bold))
+                    .font(.headline)
                     .foregroundStyle(.white)
 
                 Text(timeText)
-                    .font(.system(size: 11, weight: .medium))
+                    .font(.caption)
                     .foregroundStyle(.white.opacity(0.85))
                     .monospacedDigit()
             }
@@ -103,7 +103,7 @@ struct ClipCardView: View {
                 sensitiveBody
             } else {
                 Text(clip.content)
-                    .font(isMonospaced ? .system(size: 12, design: .monospaced) : .system(size: 13))
+                    .font(isMonospaced ? .system(.body, design: .monospaced) : .body)
                     .foregroundStyle(.primary)
                     .lineSpacing(2)
                     .lineLimit(8)
@@ -126,7 +126,7 @@ struct ClipCardView: View {
                 .foregroundStyle(.orange)
 
             Text("敏感内容已隐藏")
-                .font(.system(size: 13, weight: .medium))
+                .font(.callout)
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -135,7 +135,7 @@ struct ClipCardView: View {
     private var footer: some View {
         HStack(spacing: 6) {
             Text(clip.source)
-                .font(.system(size: 11))
+                .font(.caption2)
                 .foregroundStyle(.tertiary)
                 .lineLimit(1)
 

@@ -4,6 +4,7 @@ struct QuickPanelView: View {
     @StateObject private var viewModel: QuickPanelViewModel
     @FocusState private var searchFocused: Bool
     @Namespace private var pinboardNamespace
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     init(viewModel: QuickPanelViewModel = QuickPanelViewModel()) {
         _viewModel = StateObject(wrappedValue: viewModel)
@@ -50,18 +51,33 @@ struct QuickPanelView: View {
     // MARK: - Top bar
 
     private var topBar: some View {
-        HStack(spacing: 12) {
-            searchField
-                .frame(maxWidth: 380)
+        glassGroup {
+            HStack(spacing: 12) {
+                searchField
+                    .frame(maxWidth: 380)
 
-            Spacer(minLength: 8)
+                Spacer(minLength: 8)
 
-            pinboardTabs
+                pinboardTabs
 
-            closeButton
+                closeButton
+            }
         }
         .padding(.horizontal, 16)
         .frame(height: 56)
+    }
+
+    /// 把多个 Liquid Glass 控件包进 GlassEffectContainer（macOS 26+），
+    /// 让它们正确融合渲染；旧系统直接透传。Apple 官方要求多玻璃元素同容器。
+    @ViewBuilder
+    private func glassGroup<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+        if #available(macOS 26.0, *) {
+            GlassEffectContainer(spacing: 8) {
+                content()
+            }
+        } else {
+            content()
+        }
     }
 
     private var searchField: some View {
@@ -71,7 +87,7 @@ struct QuickPanelView: View {
 
             TextField("搜索剪贴板", text: $viewModel.query)
                 .textFieldStyle(.plain)
-                .font(.system(size: 15))
+                .font(.title3)
                 .focused($searchFocused)
                 .onSubmit(activateSelection)
 
@@ -105,7 +121,7 @@ struct QuickPanelView: View {
         let isActive = viewModel.board == board
 
         return Button {
-            withAnimation(.spring(response: 0.32, dampingFraction: 0.78)) {
+            withAnimation(reduceMotion ? nil : .spring(response: 0.32, dampingFraction: 0.78)) {
                 viewModel.board = board
             }
         } label: {
@@ -115,7 +131,7 @@ struct QuickPanelView: View {
                     .frame(width: 6, height: 6)
 
                 Text(board.rawValue)
-                    .font(.system(size: 12, weight: .medium))
+                    .font(.callout.weight(.medium))
                     .foregroundStyle(isActive ? .primary : .secondary)
             }
             .padding(.horizontal, 10)
@@ -175,12 +191,12 @@ struct QuickPanelView: View {
                     }
                     .padding(.horizontal, 20)
                     .padding(.vertical, 20)
-                    .animation(.easeOut(duration: 0.18), value: viewModel.filteredClips.map(\.id))
+                    .animation(reduceMotion ? nil : .easeOut(duration: 0.18), value: viewModel.filteredClips.map(\.id))
                 }
                 .scrollIndicators(.hidden)
                 .onChange(of: viewModel.scrollTarget) {
                     guard let target = viewModel.scrollTarget else { return }
-                    withAnimation(.easeOut(duration: 0.1)) {
+                    withAnimation(reduceMotion ? nil : .easeOut(duration: 0.1)) {
                         proxy.scrollTo(target, anchor: .center)
                     }
                 }
@@ -191,12 +207,13 @@ struct QuickPanelView: View {
 
     private var emptyState: some View {
         VStack(spacing: 10) {
-            Image(systemName: viewModel.board == .pinned ? "pin" : "clipboard")
-                .font(.system(size: 30, weight: .regular))
+            Image(systemName: viewModel.board == .pinned ? "pin" : "doc.on.clipboard")
+                .font(.largeTitle)
+                .symbolRenderingMode(.hierarchical)
                 .foregroundStyle(.tertiary)
 
             Text(emptyMessage)
-                .font(.system(size: 13, weight: .medium))
+                .font(.callout)
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

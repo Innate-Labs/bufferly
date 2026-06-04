@@ -63,13 +63,13 @@ struct SettingsView: View {
                     "双击修饰键需在「系统设置 → 隐私与安全性 → 辅助功能」中允许 Bufferly，否则不会触发。",
                     systemImage: "exclamationmark.triangle.fill"
                 )
-                .font(.system(size: 11))
+                .font(.caption)
                 .foregroundStyle(.orange)
             }
 
             LabeledContent("面板内") {
                 Text("←→ 选择 · Return 粘贴 · ⌥Return 仅复制 · ⌘Return 纯文本 · ⌘P 固定 · ⌘⌫ 删除 · ⌘K 动作")
-                    .font(.system(size: 11))
+                    .font(.caption)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.trailing)
             }
@@ -121,13 +121,13 @@ struct SettingsView: View {
 
             if settings.excludedBundleIDs.isEmpty {
                 Text("剪贴板内容不会按来源 App 过滤")
-                    .font(.system(size: 11))
+                    .font(.caption)
                     .foregroundStyle(.secondary)
             } else {
                 ForEach(settings.excludedBundleIDs, id: \.self) { bundleID in
                     HStack {
                         Text(appName(for: bundleID))
-                            .font(.system(size: 12))
+                            .font(.callout)
                         Spacer()
                         Button {
                             removeExcluded(bundleID)
