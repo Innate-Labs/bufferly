@@ -21,8 +21,8 @@ struct QuickPanelView: View {
         .frame(height: QuickPanelView.panelHeight)
         .background(hiddenShortcuts)
         // 外圆角 = 卡片圆角(14) + 卡片内边距(20)，与卡片同心。
-        // macOS 26+ 用 Liquid Glass，旧系统回退磨砂。
-        .panelGlassBackground(cornerRadius: 34)
+        // 面板用实材质作底，让上面的 Liquid Glass 控件清晰浮起。
+        .panelBackground(cornerRadius: 34)
         .onAppear {
             viewModel.startMonitoring()
             searchFocused = true
