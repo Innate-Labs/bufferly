@@ -70,9 +70,31 @@ final class QuickPanelWindowController: NSWindowController, NSWindowDelegate {
         }
 
         positionAtBottom()
+        let finalFrame = window.frame
+
+        if NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
+            window.alphaValue = 1
+            showWindow(nil)
+            window.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            onVisibilityChange?(true)
+            return
+        }
+
+        // 从略低处升起 + 淡入，类似 Spotlight 的克制入场。
+        window.alphaValue = 0
+        window.setFrame(finalFrame.offsetBy(dx: 0, dy: -10), display: false)
         showWindow(nil)
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.16
+            context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            window.animator().alphaValue = 1
+            window.animator().setFrame(finalFrame, display: true)
+        }
+
         onVisibilityChange?(true)
     }
 

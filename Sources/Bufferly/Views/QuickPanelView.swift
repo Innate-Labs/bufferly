@@ -181,6 +181,7 @@ struct QuickPanelView: View {
                     }
                     .padding(.horizontal, 20)
                     .padding(.vertical, 18)
+                    .animation(.easeOut(duration: 0.18), value: viewModel.filteredClips.map(\.id))
                 }
                 .scrollIndicators(.hidden)
                 .onChange(of: viewModel.scrollTarget) {

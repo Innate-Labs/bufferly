@@ -11,6 +11,7 @@ struct ClipCardView: View {
 
     /// 上次点击时间，用于自己判断双击，避免 SwiftUI 单/双击消歧带来的选中延迟。
     @State private var lastTapTime = Date.distantPast
+    @State private var isHovering = false
 
     static let width: CGFloat = 200
     static let height: CGFloat = 272
@@ -36,8 +37,11 @@ struct ClipCardView: View {
                 .strokeBorder(isSelected ? Color.accentColor : Color.primary.opacity(0.08),
                               lineWidth: isSelected ? 3 : 1)
         }
-        .shadow(color: .black.opacity(0.10), radius: 7, y: 3)
+        .shadow(color: .black.opacity(0.05), radius: 1, y: 1)
+        .shadow(color: .black.opacity(0.07), radius: 6, y: 3)
         .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .onHover { isHovering = $0 }
+        .animation(.easeOut(duration: 0.12), value: isHovering)
         .onTapGesture {
             let now = Date()
             if now.timeIntervalSince(lastTapTime) < 0.3 {
@@ -62,27 +66,35 @@ struct ClipCardView: View {
                 Text(timeText)
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(.white.opacity(0.85))
+                    .monospacedDigit()
             }
 
             Spacer(minLength: 0)
 
             Image(systemName: clip.kind.symbolName)
-                .font(.system(size: 15, weight: .semibold))
+                .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(.white)
-                .frame(width: 30, height: 30)
-                .background(.white.opacity(0.22))
-                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .frame(width: 26, height: 26)
+                .background(.white.opacity(0.16), in: Circle())
         }
         .padding(.horizontal, 12)
         .frame(height: 62)
         .frame(maxWidth: .infinity)
-        .background(
+        .background {
             LinearGradient(
                 colors: [clip.kind.accent, clip.kind.accent.opacity(0.82)],
                 startPoint: .top,
                 endPoint: .bottom
             )
-        )
+            .overlay(alignment: .top) {
+                LinearGradient(
+                    colors: [.white.opacity(0.22), .clear],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .frame(height: 26)
+            }
+        }
     }
 
     private var content: some View {
@@ -93,6 +105,7 @@ struct ClipCardView: View {
                 Text(clip.content)
                     .font(isMonospaced ? .system(size: 12, design: .monospaced) : .system(size: 13))
                     .foregroundStyle(.primary)
+                    .lineSpacing(2)
                     .lineLimit(8)
                     .truncationMode(.tail)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -129,16 +142,13 @@ struct ClipCardView: View {
             Spacer(minLength: 4)
 
             Button(action: onTogglePin) {
-                let pinIcon = Image(systemName: clip.isPinned ? "pin.fill" : "pin")
+                Image(systemName: clip.isPinned ? "pin.fill" : "pin")
                     .font(.system(size: 12, weight: .semibold))
-
-                if clip.isPinned {
-                    pinIcon.foregroundStyle(Color.accentColor)
-                } else {
-                    pinIcon.foregroundStyle(.tertiary)
-                }
+                    .foregroundStyle(clip.isPinned ? Color.accentColor : Color.secondary)
+                    .symbolEffect(.bounce, value: clip.isPinned)
             }
             .buttonStyle(.plain)
+            .opacity(clip.isPinned || isHovering || isSelected ? 1 : 0)
             .accessibilityLabel(clip.isPinned ? "取消固定" : "固定")
         }
     }
