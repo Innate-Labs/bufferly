@@ -2,6 +2,15 @@ import SwiftUI
 
 struct SettingsView: View {
     @ObservedObject var settings: AppSettings
+    @ObservedObject var eventPostingPermission: EventPostingPermission
+
+    init(
+        settings: AppSettings,
+        eventPostingPermission: EventPostingPermission = .shared
+    ) {
+        self.settings = settings
+        self.eventPostingPermission = eventPostingPermission
+    }
 
     var body: some View {
         Form {
@@ -19,6 +28,40 @@ struct SettingsView: View {
                 }
             }
 
+            Section("Permissions") {
+                LabeledContent("Paste automation") {
+                    Label(
+                        eventPostingPermission.isGranted ? "Allowed" : "Needs access",
+                        systemImage: eventPostingPermission.isGranted ? "checkmark.circle.fill" : "exclamationmark.triangle.fill"
+                    )
+                    .foregroundStyle(eventPostingPermission.isGranted ? .green : .orange)
+                }
+
+                HStack {
+                    Button {
+                        eventPostingPermission.requestAccess()
+                    } label: {
+                        Label("Request Access", systemImage: "hand.raised")
+                    }
+                    .disabled(eventPostingPermission.isGranted)
+
+                    Button {
+                        eventPostingPermission.refresh()
+                    } label: {
+                        Label("Refresh", systemImage: "arrow.clockwise")
+                    }
+
+                    Spacer()
+
+                    Button {
+                        eventPostingPermission.openPrivacySettings()
+                    } label: {
+                        Label("Open System Settings", systemImage: "gear")
+                    }
+                    .disabled(eventPostingPermission.isGranted)
+                }
+            }
+
             Section("Data") {
                 LabeledContent("Storage") {
                     Text(ClipStore.databasePath)
@@ -30,7 +73,10 @@ struct SettingsView: View {
         }
         .formStyle(.grouped)
         .padding(20)
-        .frame(width: 520, height: 360)
+        .frame(width: 560, height: 460)
+        .onAppear {
+            eventPostingPermission.refresh()
+        }
     }
 }
 

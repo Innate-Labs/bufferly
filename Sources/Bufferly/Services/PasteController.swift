@@ -3,12 +3,22 @@ import Carbon
 import CoreGraphics
 
 enum PasteController {
-    static func pasteIntoApplication(_ application: NSRunningApplication?) {
+    @discardableResult
+    @MainActor
+    static func pasteIntoApplication(_ application: NSRunningApplication?) -> Bool {
+        EventPostingPermission.shared.refresh()
+
+        guard EventPostingPermission.shared.isGranted else {
+            return false
+        }
+
         application?.activate(options: [])
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) {
             sendCommandV()
         }
+
+        return true
     }
 
     private static func sendCommandV() {
