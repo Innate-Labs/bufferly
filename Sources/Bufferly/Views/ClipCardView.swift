@@ -33,11 +33,7 @@ struct ClipCardView: View {
                 .strokeBorder(isSelected ? Color.accentColor : Color.primary.opacity(0.08),
                               lineWidth: isSelected ? 3 : 1)
         }
-        .shadow(color: .black.opacity(isSelected ? 0.22 : 0.10),
-                radius: isSelected ? 16 : 7,
-                y: isSelected ? 8 : 3)
-        .scaleEffect(isSelected ? 1.0 : 0.965)
-        .animation(.easeOut(duration: 0.12), value: isSelected)
+        .shadow(color: .black.opacity(0.10), radius: 7, y: 3)
         .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .onTapGesture(count: 2, perform: onActivate)
         .onTapGesture(perform: onSelect)

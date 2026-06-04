@@ -187,7 +187,7 @@ struct QuickPanelView: View {
                 .scrollIndicators(.hidden)
                 .onChange(of: viewModel.scrollTarget) {
                     guard let target = viewModel.scrollTarget else { return }
-                    withAnimation(.easeOut(duration: 0.16)) {
+                    withAnimation(.easeOut(duration: 0.1)) {
                         proxy.scrollTo(target, anchor: .center)
                     }
                 }
