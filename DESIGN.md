@@ -58,19 +58,18 @@ Bufferly 的 UI 不追求炫技，不做网页感、SaaS 感或重型素材库�
 
 Quick Panel 是 Bufferly 的核心界面，按全局快捷键呼出。
 
+> 方向变更（见 §16-(a)）：自 v0.2 起 Quick Panel 由「居中竖向列表」改为 **Paste 式底部横向卡片墙**。下文已按新方向描述。
+
 建议尺寸：
 
-- 默认宽度：720 pt
-- 最小宽度：600 pt
-- 最大宽度：840 pt
-- 默认高度：520 pt
-- 最大高度：屏幕高度的 70%
+- 高度：约 392 pt（固定）。
+- 宽度：按当前屏幕宽度铺开，左右各留 24 pt 边距，最大 1280 pt。
+- 卡片：宽 200 pt、高 272 pt，横向排列。
 
 位置：
 
-- 屏幕水平居中。
-- 垂直位置略高于中心，类似 Spotlight / Raycast。
-- 多显示器场景下显示在当前鼠标或前台 App 所在屏幕。
+- 贴当前屏幕**底部**居中，距底部约 24 pt（类似 Paste 的底部条）。
+- 多显示器场景下显示在当前鼠标所在屏幕。
 
 窗口行为：
 
@@ -82,28 +81,27 @@ Quick Panel 是 Bufferly 的核心界面，按全局快捷键呼出。
 
 视觉：
 
-- 背景使用 macOS material 或 window background。
-- 圆角建议 16 pt 左右，贴近系统浮层。
+- 背景使用 macOS material。
+- 整体圆角约 20 pt，贴近系统浮层。
+- 卡片为主角：彩色头部 + 白色正文，圆角 14 pt，轻阴影；选中卡片抬起放大并加 accentColor 描边。
 - 外阴影轻，强调层级但不要漂浮感过强。
-- 内部不要再嵌套大卡片。
 
 结构：
 
 ```text
-+------------------------------------------------------+
-| Search field                                         |
-+------------------------------------------------------+
-| Pinned                                               |
-| [type] preview text                         shortcut |
-| [type] preview text                         shortcut |
-+------------------------------------------------------+
-| Recent                                               |
-| [type] preview text                 source/time/actions |
-| [type] preview text                 source/time/actions |
-| [type] preview text                 source/time/actions |
-+------------------------------------------------------+
-| Footer: count / selected action / privacy state      |
-+------------------------------------------------------+
++--------------------------------------------------------------+
+| [search]            [剪贴板 | 已固定]  pinboard tabs     [x]  |
++--------------------------------------------------------------+
+|  ┌────────┐  ┌────────┐  ┌────────┐  ┌────────┐   →          |
+|  │ type   │  │ type   │  │ type   │  │ type   │   横向滚动    |
+|  │ time   │  │ time   │  │ time   │  │ time   │              |
+|  ├────────┤  ├────────┤  ├────────┤  ├────────┤              |
+|  │preview │  │preview │  │preview │  │preview │              |
+|  │ source▸│  │ source▸│  │ source▸│  │ source▸│              |
+|  └────────┘  └────────┘  └────────┘  └────────┘              |
++--------------------------------------------------------------+
+| Footer: count / ←→ 选择 / Return 粘贴 / ⌘P 固定 / Esc 关闭    |
++--------------------------------------------------------------+
 ```
 
 ### 4.2 Search Field
@@ -125,29 +123,27 @@ Quick Panel 是 Bufferly 的核心界面，按全局快捷键呼出。
 - 左侧搜索图标使用系统符号。
 - 不做夸张边框。
 
-### 4.3 Clip Row
+### 4.3 Clip Card
 
-Clip Row 是主面板的信息单元，不使用大卡片堆叠。
+> 方向变更（见 §16-(a)）：信息单元由「紧凑行」改为 **Paste 式卡片**。原 §4.3 Clip Row 的「不使用大卡片堆叠」已被本次决定否决。
 
-行高：
+Clip Card 是卡片墙的信息单元，富预览、可扫读。
 
-- 普通文本：52 pt
-- 多行预览：最高 76 pt
-- Pinned 区域行高保持一致，避免视觉跳动。
+尺寸：
 
-内容：
+- 宽 200 pt、高 272 pt，固定，避免横向滚动时跳动。
 
-- 左侧 type badge / icon。
-- 中间 preview，最多 2 行。
-- 右侧显示时间、来源 App、操作按钮。
+结构：
+
+- 头部（高约 62 pt）：按类型着色（见 §9 类型色），显示类型名（白色粗体）+ 相对时间 + 右上类型图标。
+- 正文（白色）：富预览，代码 / JSON / 命令用等宽字体，最多 8 行；底部一行显示来源 App + pin 按钮。
 
 状态：
 
-- Default：透明或轻微背景。
-- Hover：系统 fill 色轻微提高。
-- Selected：使用 accentColor 的低透明背景，文字仍保持高对比。
-- Pinned：显示 pin 状态，不改变主色调。
-- Sensitive blocked：使用 lock 图标和脱敏文案，不显示明文。
+- Default：轻阴影，略微缩小（0.965）。
+- Selected：抬起到原始大小 + accentColor 描边 + 更强阴影，并自动滚入视野中央。
+- Pinned：pin 图标点亮为 accentColor。
+- Sensitive blocked：正文用 lock 图标和脱敏文案，不显示明文。
 
 ### 4.4 Type Badge
 
@@ -261,7 +257,7 @@ Footer 只放辅助信息。
 主面板：
 
 - `Esc`：关闭。
-- `Arrow Up / Down`：移动选中项。
+- `Arrow Left / Right`：在卡片墙左右移动选中项（`Up / Down` 作为等效别名，见 §16-(a)）。
 - `Enter`：复制并尝试粘贴选中项。
 - `Option + Enter`：只复制到剪贴板，不自动粘贴。
 - `Command + Enter`：粘贴为纯文本。
@@ -329,8 +325,9 @@ Footer 只放辅助信息。
 
 - 面板出现：80-120ms opacity + scale 0.98 -> 1。
 - 面板关闭：60-90ms opacity。
-- 列表选择：无弹跳，仅背景色过渡。
-- 删除：轻微 fade/height collapse，避免夸张动画。
+- 卡片选择：~120ms ease-out 的抬起 / 缩放过渡（见 §16-(a)），无弹跳。
+- 选中卡片滚入视野：~160ms ease-out。
+- 删除：轻微 fade/collapse，避免夸张动画。
 - 搜索结果变化：优先即时更新，不做复杂过渡。
 
 禁止：
@@ -338,7 +335,7 @@ Footer 只放辅助信息。
 - 弹性过强的 spring。
 - 长时间模糊动画。
 - 大面积渐变动效。
-- 卡片飞入飞出。
+- 卡片飞入飞出式的入场动画（卡片选中抬起不在此列）。
 
 ## 9. 颜色与材质
 
@@ -350,8 +347,14 @@ Footer 只放辅助信息。
 - Text primary：system primary label。
 - Text secondary：secondary label。
 - Separator：system separator。
-- Selected：accentColor with low opacity。
+- Selected：accentColor 描边（卡片墙）。
 - Warning / Secret：system red or orange，仅用于状态点和 icon。
+
+类型色（卡片头部，见 §16-(a)）：
+
+- 仅用于卡片彩色头部，正文与列表其余部分仍跟随系统语义色，不扩散成全局品牌色。
+- Text：blue / URL：green / JSON：purple / Command：石墨灰 / Code：indigo / Email：pink / Secret：orange。
+- 头部一律白色文字，所选颜色需保证对比度。
 
 Dark Mode：
 
@@ -472,4 +475,39 @@ MVP UI 验收：
 - Apple Human Interface Guidelines: https://developer.apple.com/design/human-interface-guidelines
 - Apple HIG - Windows: https://developer.apple.com/design/Human-Interface-Guidelines/windows
 - Apple HIG - Keyboards: https://developer.apple.com/design/human-interface-guidelines/keyboards
-- Paste: reference for visual clipboard history, search, and pinned reusable content.
+- Paste: https://pasteapp.io — 视觉与交互的主要参照（卡片墙、Pinboard、富预览）。
+
+## 16. 修订日志
+
+### (a) v0.2：Quick Panel 从 Raycast 式竖向列表转向 Paste 式横向卡片墙
+
+日期：2026-06-05  
+决策人：项目所有者（明确选择「真正向 Paste 看齐」）。
+
+**改了什么**
+
+- 面板从「屏幕居中浮层 + 竖向紧凑行列表」改为「屏幕底部横向卡片墙」。
+- 信息单元从 Clip Row（紧凑行）改为 Clip Card（彩色头部 + 白色正文的卡片）。
+- 键盘导航主方向从上下改为左右。
+- 顶部新增 Pinboard 分段标签（剪贴板 / 已固定）。
+- 新增按类型的卡片头部色（§9 类型色）。
+
+**为什么改**
+
+- 原 v0.1 只取了 Paste 的「可视化历史」概念，刻意用 Raycast 式竖向列表实现，并主动驳回了 Paste 的卡片形态。
+- 实际使用后，项目所有者希望直接对齐 Paste 的具体样式（富预览、可横向扫读、来源与类型一眼可辨），认为卡片墙比紧凑行更符合产品期望。这是基于真实使用偏好的方向调整，优先级高于 v0.1 当初的取舍。
+
+**因此被否决/取代的原 v0.1 条款**
+
+- §4.1「屏幕水平居中」「略高于中心，类似 Spotlight / Raycast」「内部不要再嵌套大卡片」——改为底部卡片墙。
+- §4.3「不使用大卡片堆叠」——改为正式采用卡片。
+- §3 避免清单「过度圆角卡片」——卡片为主角，14 pt 圆角属正常范围；仍避免「过度」与 Web 卡片味。
+- §8「卡片飞入飞出」——仅保留禁止「入场动画式」的飞入飞出；卡片选中抬起是允许的。
+- §6.2 上下导航——主方向改为左右。
+
+**仍然保留的原则（未被本次推翻）**
+
+- 原生优先、键盘优先、低打扰、本地可信、高信息密度。
+- 跟随系统语义色：类型色只用于卡片头部，不扩散成全局品牌色；正文仍用系统色。
+- 不自定义品牌字体、支持 Light / Dark、尊重 Reduce Motion / Increase Contrast。
+- 不做营销 hero、不做 Web dashboard 味、玻璃拟态不过重影响可读性。

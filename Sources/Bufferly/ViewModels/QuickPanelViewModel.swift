@@ -1,12 +1,36 @@
 import AppKit
 import Combine
 import Foundation
+import SwiftUI
 
 @MainActor
 final class QuickPanelViewModel: ObservableObject {
+    /// Pinboard 分段：剪贴板（全部历史）/ 已固定。
+    enum Board: String, CaseIterable, Identifiable {
+        case clipboard = "剪贴板"
+        case pinned = "已固定"
+
+        var id: String { rawValue }
+
+        var dotColor: Color {
+            switch self {
+            case .clipboard:
+                .secondary
+            case .pinned:
+                .orange
+            }
+        }
+    }
+
     @Published var query = ""
     @Published private(set) var clips: [ClipItem] = []
     @Published var selectedID: ClipItem.ID?
+    @Published var board: Board = .clipboard {
+        didSet {
+            guard oldValue != board else { return }
+            selectedID = filteredClips.first?.id
+        }
+    }
 
     private var maxHistoryCount: Int {
         AppSettings.shared.maxHistoryCount
@@ -26,13 +50,14 @@ final class QuickPanelViewModel: ObservableObject {
     }
 
     var filteredClips: [ClipItem] {
+        let boardClips = board == .pinned ? clips.filter(\.isPinned) : clips
         let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
 
         guard !trimmedQuery.isEmpty else {
-            return clips
+            return boardClips
         }
 
-        return clips.filter { clip in
+        return boardClips.filter { clip in
             clip.title.localizedCaseInsensitiveContains(trimmedQuery)
                 || clip.preview.localizedCaseInsensitiveContains(trimmedQuery)
                 || clip.content.localizedCaseInsensitiveContains(trimmedQuery)
@@ -117,6 +142,7 @@ final class QuickPanelViewModel: ObservableObject {
 
         pasteboard.clearContents()
         pasteboard.setString(selectedClip.content, forType: .string)
+        clipboardMonitor.syncToCurrentChangeCount()
         return true
     }
 
