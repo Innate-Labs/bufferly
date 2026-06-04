@@ -2,7 +2,6 @@ import SwiftUI
 
 struct QuickPanelView: View {
     @StateObject private var viewModel: QuickPanelViewModel
-    @FocusState private var searchFocused: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     init(viewModel: QuickPanelViewModel = QuickPanelViewModel()) {
@@ -25,7 +24,6 @@ struct QuickPanelView: View {
         .panelBackground(cornerRadius: 34)
         .onAppear {
             viewModel.startMonitoring()
-            searchFocused = true
         }
         .onChange(of: viewModel.query) {
             viewModel.handleQueryChange()
@@ -65,31 +63,14 @@ struct QuickPanelView: View {
     }
 
     private var searchField: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "magnifyingglass")
-                .foregroundStyle(.secondary)
-
-            TextField("搜索剪贴板", text: $viewModel.query)
-                .textFieldStyle(.plain)
-                .focused($searchFocused)
-                .onSubmit(activateSelection)
-
-            if !viewModel.query.isEmpty {
-                Button {
-                    viewModel.query = ""
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .symbolRenderingMode(.hierarchical)
-                        .foregroundStyle(.secondary)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("清除搜索")
-            }
-        }
-        .font(.title3)
-        .padding(.horizontal, 12)
-        .frame(height: 34)
-        .controlGlassBackground(in: Capsule())
+        NativeSearchField(
+            text: $viewModel.query,
+            onSubmit: activateSelection,
+            onCancel: { NotificationCenter.default.post(name: .quickPanelDidRequestClose, object: nil) },
+            onMovePrevious: viewModel.selectPrevious,
+            onMoveNext: viewModel.selectNext
+        )
+        .frame(height: 28)
     }
 
     /// 原生分段控件（macOS 26 自动套用 Liquid Glass）。
