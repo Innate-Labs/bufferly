@@ -20,13 +20,9 @@ struct QuickPanelView: View {
         .frame(maxWidth: .infinity)
         .frame(height: QuickPanelView.panelHeight)
         .background(hiddenShortcuts)
-        .background(.ultraThinMaterial)
         // 外圆角 = 卡片圆角(14) + 卡片内边距(20)，与卡片同心。
-        .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 34, style: .continuous)
-                .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
-        }
+        // macOS 26+ 用 Liquid Glass，旧系统回退磨砂。
+        .panelGlassBackground(cornerRadius: 34)
         .onAppear {
             viewModel.startMonitoring()
             searchFocused = true
