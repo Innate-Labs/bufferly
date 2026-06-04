@@ -88,8 +88,7 @@ struct QuickPanelView: View {
         }
         .padding(.horizontal, 12)
         .frame(height: 34)
-        .background(Color.primary.opacity(0.06))
-        .clipShape(Capsule())
+        .controlGlassBackground(in: Capsule())
     }
 
     private var pinboardTabs: some View {
@@ -99,8 +98,7 @@ struct QuickPanelView: View {
             }
         }
         .padding(3)
-        .background(Color.primary.opacity(0.05))
-        .clipShape(Capsule())
+        .controlGlassBackground(in: Capsule())
     }
 
     private func pinboardTab(_ board: QuickPanelViewModel.Board) -> some View {
@@ -142,8 +140,7 @@ struct QuickPanelView: View {
             RemixIcon(name: "RemixClose", size: 13)
                 .foregroundStyle(.secondary)
                 .frame(width: 26, height: 26)
-                .background(Color.primary.opacity(0.05))
-                .clipShape(Circle())
+                .controlGlassBackground(in: Circle())
         }
         .buttonStyle(.plain)
         .accessibilityLabel("关闭面板")

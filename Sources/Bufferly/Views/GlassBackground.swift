@@ -27,3 +27,22 @@ extension View {
         modifier(PanelGlassBackground(cornerRadius: cornerRadius))
     }
 }
+
+/// 控件背景（搜索框 / 标签 / 按钮）：macOS 26+ 用 Liquid Glass，旧系统回退到淡色填充。
+struct ControlGlassBackground<S: Shape>: ViewModifier {
+    let shape: S
+
+    func body(content: Content) -> some View {
+        if #available(macOS 26.0, *) {
+            content.glassEffect(.regular, in: shape)
+        } else {
+            content.background(Color.primary.opacity(0.06), in: shape)
+        }
+    }
+}
+
+extension View {
+    func controlGlassBackground<S: Shape>(in shape: S) -> some View {
+        modifier(ControlGlassBackground(shape: shape))
+    }
+}
