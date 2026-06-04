@@ -15,10 +15,6 @@ struct QuickPanelView: View {
             Divider()
 
             cardWall
-
-            Divider()
-
-            footer
         }
         .frame(maxWidth: .infinity)
         .frame(height: QuickPanelView.panelHeight)
@@ -51,7 +47,7 @@ struct QuickPanelView: View {
         }
     }
 
-    static let panelHeight: CGFloat = 392
+    static let panelHeight: CGFloat = 366
 
     // MARK: - Top bar
 
@@ -217,68 +213,6 @@ struct QuickPanelView: View {
         return viewModel.board == .pinned ? "还没有固定的片段" : "复制文本开始使用"
     }
 
-    // MARK: - Footer
-
-    private var footer: some View {
-        HStack(spacing: 8) {
-            Text("\(viewModel.filteredClips.count) 条记录")
-                .foregroundStyle(.secondary)
-
-            Circle()
-                .fill(Color.secondary.opacity(0.35))
-                .frame(width: 4, height: 4)
-
-            Label(
-                viewModel.sensitiveFilteringEnabled ? "敏感过滤已开启" : "敏感过滤未启用",
-                systemImage: viewModel.sensitiveFilteringEnabled ? "lock.fill" : "lock.open"
-            )
-            .foregroundStyle(.secondary)
-
-            Spacer()
-
-            Text("←→")
-                .keyboardHint()
-            Text("选择")
-                .foregroundStyle(.secondary)
-
-            Text("Return")
-                .keyboardHint()
-            Text("粘贴")
-                .foregroundStyle(.secondary)
-
-            Button {
-                viewModel.togglePinSelected()
-            } label: {
-                Text("⌘P 固定")
-                    .foregroundStyle(.secondary)
-            }
-            .buttonStyle(.plain)
-            .keyboardShortcut("p", modifiers: [.command])
-            .disabled(viewModel.selectedClip == nil)
-
-            if let selectedClip = viewModel.selectedClip {
-                Menu {
-                    clipActions(for: selectedClip)
-                } label: {
-                    Text("⌘K 动作")
-                        .foregroundStyle(.secondary)
-                }
-                .menuStyle(.borderlessButton)
-                .menuIndicator(.hidden)
-                .fixedSize()
-                .keyboardShortcut("k", modifiers: [.command])
-            }
-
-            Text("Esc")
-                .keyboardHint()
-            Text("关闭")
-                .foregroundStyle(.secondary)
-        }
-        .font(.system(size: 12))
-        .padding(.horizontal, 16)
-        .frame(height: 36)
-    }
-
     // MARK: - Actions
 
     /// 卡片右键 / ⌘K 共用的动作列表。
@@ -334,6 +268,9 @@ struct QuickPanelView: View {
 
             Button("", action: viewModel.deleteSelected)
                 .keyboardShortcut(.delete, modifiers: .command)
+
+            Button("", action: viewModel.togglePinSelected)
+                .keyboardShortcut("p", modifiers: .command)
         }
         .opacity(0)
         .frame(width: 0, height: 0)
