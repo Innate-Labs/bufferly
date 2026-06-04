@@ -11,7 +11,9 @@ final class QuickPanelWindowController: NSWindowController, NSWindowDelegate {
     init() {
         let contentView = QuickPanelView()
         let hostingView = NSHostingView(rootView: contentView)
-        let window = NSWindow(
+        // 用可成为 key 的子类：无边框窗口默认 canBecomeKey=false，
+        // 否则窗口收不到键盘、也永远不会触发 resignKey（失焦自动隐藏因此失效）。
+        let window = KeyablePanelWindow(
             contentRect: NSRect(x: 0, y: 0, width: 980, height: QuickPanelView.panelHeight),
             styleMask: [.borderless, .fullSizeContentView],
             backing: .buffered,
@@ -87,4 +89,11 @@ final class QuickPanelWindowController: NSWindowController, NSWindowDelegate {
     required init?(coder: NSCoder) {
         nil
     }
+}
+
+/// 无边框面板窗口。覆写 canBecomeKey/Main，使其能接收键盘输入，
+/// 并在点击其它界面失焦时正常触发 windowDidResignKey 以自动隐藏。
+private final class KeyablePanelWindow: NSWindow {
+    override var canBecomeKey: Bool { true }
+    override var canBecomeMain: Bool { true }
 }
