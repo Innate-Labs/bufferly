@@ -8,14 +8,19 @@ final class QuickPanelViewModel: ObservableObject {
     @Published private(set) var clips: [ClipItem] = []
     @Published var selectedID: ClipItem.ID?
 
-    private let maxHistoryCount = 500
+    private var maxHistoryCount: Int {
+        AppSettings.shared.maxHistoryCount
+    }
     private let pasteboard: NSPasteboard
     private let clipStore: ClipStore?
     private lazy var clipboardMonitor = ClipboardMonitor(pasteboard: pasteboard) { [weak self] text in
         self?.addClipboardText(text)
     }
 
-    init(pasteboard: NSPasteboard = .general, clipStore: ClipStore? = try? ClipStore()) {
+    init(
+        pasteboard: NSPasteboard = .general,
+        clipStore: ClipStore? = try? ClipStore(maxHistoryCount: AppSettings.shared.maxHistoryCount)
+    ) {
         self.pasteboard = pasteboard
         self.clipStore = clipStore
     }

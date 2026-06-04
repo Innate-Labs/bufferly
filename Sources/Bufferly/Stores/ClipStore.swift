@@ -2,6 +2,10 @@ import Foundation
 import GRDB
 
 final class ClipStore {
+    static var databasePath: String {
+        (try? databaseURL().path) ?? "Unavailable"
+    }
+
     private let dbQueue: DatabaseQueue
     private let maxHistoryCount: Int
 

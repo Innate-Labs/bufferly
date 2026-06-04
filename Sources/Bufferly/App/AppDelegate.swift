@@ -3,6 +3,7 @@ import AppKit
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var quickPanelWindowController: QuickPanelWindowController?
+    private var settingsWindowController: SettingsWindowController?
     private var hotKeyManager: HotKeyManager?
     private var pasteTargetApplication: NSRunningApplication?
 
@@ -39,8 +40,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func handlePasteRequest() {
-        quickPanelWindowController?.hidePanel()
-        PasteController.pasteIntoApplication(pasteTargetApplication)
+        if AppSettings.shared.hideAfterPaste {
+            quickPanelWindowController?.hidePanel()
+        }
+
+        if AppSettings.shared.autoPasteAfterSelection {
+            PasteController.pasteIntoApplication(pasteTargetApplication)
+        }
     }
 
     private func updatePasteTargetApplication() {
@@ -73,7 +79,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         appMenu.addItem(
             NSMenuItem(
                 title: "Settings...",
-                action: nil,
+                action: #selector(showSettings(_:)),
                 keyEquivalent: ","
             )
         )
@@ -89,5 +95,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         appMenuItem.submenu = appMenu
         mainMenu.addItem(appMenuItem)
         NSApp.mainMenu = mainMenu
+    }
+
+    @objc
+    private func showSettings(_ sender: Any?) {
+        if settingsWindowController == nil {
+            settingsWindowController = SettingsWindowController()
+        }
+
+        settingsWindowController?.showSettings()
     }
 }
