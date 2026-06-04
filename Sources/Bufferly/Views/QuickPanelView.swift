@@ -21,9 +21,10 @@ struct QuickPanelView: View {
         .frame(height: QuickPanelView.panelHeight)
         .background(hiddenShortcuts)
         .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        // 外圆角 = 卡片圆角(14) + 卡片内边距(20)，与卡片同心。
+        .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
+            RoundedRectangle(cornerRadius: 34, style: .continuous)
                 .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
         }
         .onAppear {
@@ -48,7 +49,7 @@ struct QuickPanelView: View {
         }
     }
 
-    static let panelHeight: CGFloat = 366
+    static let panelHeight: CGFloat = 370
 
     // MARK: - Top bar
 
@@ -180,7 +181,7 @@ struct QuickPanelView: View {
                         }
                     }
                     .padding(.horizontal, 20)
-                    .padding(.vertical, 18)
+                    .padding(.vertical, 20)
                     .animation(.easeOut(duration: 0.18), value: viewModel.filteredClips.map(\.id))
                 }
                 .scrollIndicators(.hidden)
