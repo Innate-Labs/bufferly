@@ -40,8 +40,8 @@ final class QuickPanelViewModel: ObservableObject {
     }
     private let pasteboard: NSPasteboard
     private let clipStore: ClipStore?
-    private lazy var clipboardMonitor = ClipboardMonitor(pasteboard: pasteboard) { [weak self] text in
-        self?.addClipboardText(text)
+    private lazy var clipboardMonitor = ClipboardMonitor(pasteboard: pasteboard) { [weak self] capture in
+        self?.addCapture(capture)
     }
 
     init(
@@ -105,7 +105,7 @@ final class QuickPanelViewModel: ObservableObject {
         selectFirstIfNeeded()
     }
 
-    func addClipboardText(_ text: String) {
+    func addCapture(_ capture: ClipboardCapture) {
         let frontmost = NSWorkspace.shared.frontmostApplication
 
         // 排除特定 App：来源在排除列表内则不采集。
@@ -118,6 +118,22 @@ final class QuickPanelViewModel: ObservableObject {
 
         let source = frontmost?.localizedName ?? "剪贴板"
 
+        switch capture {
+        case .text(let text):
+            addText(text, source: source)
+        case .richText(let rtf, let plain):
+            addRichText(rtf: rtf, plain: plain, source: source)
+        case .image(let png, let pixelSize):
+            register(ClipClassifier.makeImageClip(png: png, pixelSize: pixelSize, source: source), blob: png)
+        case .files(let urls):
+            guard let clip = ClipClassifier.makeFileClip(urls: urls, source: source) else {
+                return
+            }
+            register(clip)
+        }
+    }
+
+    private func addText(_ text: String, source: String) {
         var newClip: ClipItem
         if AppSettings.shared.sensitiveFiltering, SensitiveContentFilter.isSensitive(text) {
             // 命中敏感内容：要么丢弃，要么留一个不含明文的脱敏占位。
@@ -135,6 +151,22 @@ final class QuickPanelViewModel: ObservableObject {
         register(newClip)
     }
 
+    private func addRichText(rtf: Data, plain: String, source: String) {
+        // 敏感判定按纯文本走；命中则按脱敏占位处理，丢弃 RTF。
+        if AppSettings.shared.sensitiveFiltering, SensitiveContentFilter.isSensitive(plain) {
+            guard AppSettings.shared.storeSensitivePlaceholder else {
+                return
+            }
+            register(ClipClassifier.makeMaskedSecret(source: source))
+            return
+        }
+
+        guard let clip = ClipClassifier.makeRichTextClip(rtf: rtf, plain: plain, source: source) else {
+            return
+        }
+        register(clip, blob: rtf)
+    }
+
     /// 对选中条目套用一个转换（JSON 格式化/压缩、URL 清理），结果写回剪贴板并作为新条目。
     /// 返回是否成功（内容不适用该转换时返回 false）。
     @discardableResult
@@ -142,6 +174,7 @@ final class QuickPanelViewModel: ObservableObject {
         guard
             let clip = clips.first(where: { $0.id == clipID }),
             !clip.isSensitive,
+            !clip.kind.isAttachment,
             let result = transform(clip.content),
             let transformed = ClipClassifier.makeClip(from: result, source: clip.source)
         else {
@@ -155,9 +188,11 @@ final class QuickPanelViewModel: ObservableObject {
         return true
     }
 
-    /// 去重后插入到列表头并持久化，同时把选中移到它。
-    private func register(_ clip: ClipItem) {
+    /// 去重后插入到列表头并持久化，同时把选中移到它。`blob` 为附件型的二进制数据，
+    /// 仅在确为新条目时写盘（命中去重则复用已有附件，避免写孤儿文件）。
+    private func register(_ clip: ClipItem, blob: Data? = nil) {
         var newClip = clip
+        var isDuplicate = false
 
         if let existingIndex = clips.firstIndex(where: {
             $0.content == newClip.content && $0.isSensitive == newClip.isSensitive
@@ -165,11 +200,22 @@ final class QuickPanelViewModel: ObservableObject {
             var existing = clips.remove(at: existingIndex)
             existing.updatedAt = Date()
             newClip = existing
+            isDuplicate = true
+        }
+
+        if !isDuplicate, let blob, let filename = newClip.attachmentFilename {
+            ClipBlobStore.write(blob, filename: filename)
         }
 
         clips.insert(newClip, at: 0)
 
         if clips.count > maxHistoryCount {
+            // 被裁掉的旧条目若带附件，一并清理 blob，避免磁盘泄漏。
+            clips.suffix(clips.count - maxHistoryCount).forEach { pruned in
+                if let filename = pruned.attachmentFilename {
+                    ClipBlobStore.delete(filename: filename)
+                }
+            }
             clips.removeLast(clips.count - maxHistoryCount)
         }
 
@@ -223,6 +269,9 @@ final class QuickPanelViewModel: ObservableObject {
         let visibleBefore = filteredClips
         let removedVisibleIndex = visibleBefore.firstIndex(where: { $0.id == clipID })
 
+        if let filename = clips[index].attachmentFilename {
+            ClipBlobStore.delete(filename: filename)
+        }
         clips.remove(at: index)
         persistDelete(clipID: clipID)
 
@@ -236,6 +285,14 @@ final class QuickPanelViewModel: ObservableObject {
     }
 
     func clearHistory(keepPinned: Bool) {
+        // 被清掉的条目若带附件，先删 blob。
+        let removed = keepPinned ? clips.filter { !$0.isPinned } : clips
+        removed.forEach { clip in
+            if let filename = clip.attachmentFilename {
+                ClipBlobStore.delete(filename: filename)
+            }
+        }
+
         clips = keepPinned ? clips.filter(\.isPinned) : []
         selectedID = filteredClips.first?.id
 
@@ -257,7 +314,40 @@ final class QuickPanelViewModel: ObservableObject {
         }
 
         pasteboard.clearContents()
-        pasteboard.setString(selectedClip.content, forType: .string)
+
+        switch selectedClip.kind {
+        case .image:
+            guard
+                let filename = selectedClip.attachmentFilename,
+                let data = ClipBlobStore.read(filename: filename)
+            else {
+                return false
+            }
+            pasteboard.setData(data, forType: .png)
+
+        case .richText:
+            if
+                let filename = selectedClip.attachmentFilename,
+                let rtf = ClipBlobStore.read(filename: filename)
+            {
+                pasteboard.setData(rtf, forType: .rtf)
+            }
+            // 始终附带纯文本，供「纯文本粘贴」与不支持富文本的目标兜底。
+            pasteboard.setString(selectedClip.content, forType: .string)
+
+        case .file:
+            let urls = selectedClip.content
+                .split(separator: "\n")
+                .map { URL(fileURLWithPath: String($0)) }
+            guard !urls.isEmpty else {
+                return false
+            }
+            pasteboard.writeObjects(urls as [NSURL])
+
+        default:
+            pasteboard.setString(selectedClip.content, forType: .string)
+        }
+
         clipboardMonitor.syncToCurrentChangeCount()
         return true
     }

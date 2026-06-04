@@ -1,6 +1,7 @@
+import AppKit
 import SwiftUI
 
-/// Paste 式剪贴板卡片：彩色头部（类型 + 时间 + 类型图标）+ 白色正文（富预览 + 来源 + pin）。
+/// Paste 式剪贴板卡片：彩色头部（类型 + 时间 + 类型图标）+ 白色正文（文本/图片/文件/富文本预览 + 来源 + pin）。
 /// 选中态：抬起放大 + accentColor 描边 + 更强阴影。
 struct ClipCardView: View {
     let clip: ClipItem
@@ -12,6 +13,9 @@ struct ClipCardView: View {
     /// 上次点击时间，用于自己判断双击，避免 SwiftUI 单/双击消歧带来的选中延迟。
     @State private var lastTapTime = Date.distantPast
     @State private var isHovering = false
+    /// 附件型懒加载：图片缩略图 / 富文本富排版，从 blob 读出后缓存。
+    @State private var loadedImage: NSImage?
+    @State private var loadedRichText: AttributedString?
 
     static let width: CGFloat = 200
     static let height: CGFloat = 272
@@ -99,17 +103,7 @@ struct ClipCardView: View {
 
     private var content: some View {
         VStack(alignment: .leading, spacing: 0) {
-            if clip.isSensitive {
-                sensitiveBody
-            } else {
-                Text(clip.content)
-                    .font(isMonospaced ? .system(.body, design: .monospaced) : .body)
-                    .foregroundStyle(.primary)
-                    .lineSpacing(2)
-                    .lineLimit(8)
-                    .truncationMode(.tail)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
+            bodyContent
 
             Spacer(minLength: 8)
 
@@ -117,6 +111,113 @@ struct ClipCardView: View {
         }
         .padding(12)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .onAppear(perform: loadAttachmentIfNeeded)
+    }
+
+    @ViewBuilder
+    private var bodyContent: some View {
+        if clip.isSensitive {
+            sensitiveBody
+        } else {
+            switch clip.kind {
+            case .image:
+                imageBody
+            case .file:
+                fileBody
+            case .richText:
+                richTextBody
+            default:
+                textBody
+            }
+        }
+    }
+
+    private var textBody: some View {
+        Text(clip.content)
+            .font(isMonospaced ? .system(.body, design: .monospaced) : .body)
+            .foregroundStyle(.primary)
+            .lineSpacing(2)
+            .lineLimit(8)
+            .truncationMode(.tail)
+            .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    @ViewBuilder
+    private var imageBody: some View {
+        if let loadedImage {
+            Image(nsImage: loadedImage)
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        } else {
+            Image(systemName: "photo")
+                .font(.largeTitle)
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(.tertiary)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+
+    private var fileBody: some View {
+        let firstPath = clip.content.split(whereSeparator: \.isNewline).first.map(String.init) ?? ""
+        return HStack(alignment: .top, spacing: 10) {
+            Image(nsImage: NSWorkspace.shared.icon(forFile: firstPath))
+                .resizable()
+                .frame(width: 40, height: 40)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(clip.title)
+                    .font(.callout)
+                    .foregroundStyle(.primary)
+                    .lineLimit(2)
+
+                Text(firstPath)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                    .truncationMode(.middle)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    @ViewBuilder
+    private var richTextBody: some View {
+        if let loadedRichText {
+            Text(loadedRichText)
+                .lineSpacing(2)
+                .lineLimit(8)
+                .truncationMode(.tail)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        } else {
+            textBody
+        }
+    }
+
+    /// 从 blob 懒加载图片缩略图 / 富文本富排版（仅附件型，小附件主线程读取即可）。
+    private func loadAttachmentIfNeeded() {
+        guard let filename = clip.attachmentFilename else {
+            return
+        }
+
+        switch clip.kind {
+        case .image where loadedImage == nil:
+            loadedImage = ClipBlobStore.read(filename: filename).flatMap { NSImage(data: $0) }
+        case .richText where loadedRichText == nil:
+            if
+                let data = ClipBlobStore.read(filename: filename),
+                let ns = try? NSAttributedString(
+                    data: data,
+                    options: [.documentType: NSAttributedString.DocumentType.rtf],
+                    documentAttributes: nil
+                )
+            {
+                loadedRichText = AttributedString(ns)
+            }
+        default:
+            break
+        }
     }
 
     private var sensitiveBody: some View {

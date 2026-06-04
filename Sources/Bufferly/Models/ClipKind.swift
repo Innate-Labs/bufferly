@@ -7,6 +7,9 @@ enum ClipKind: String, CaseIterable, Identifiable {
     case command = "命令"
     case code = "代码"
     case email = "邮件"
+    case image = "图片"
+    case file = "文件"
+    case richText = "富文本"
     case secret = "敏感"
 
     var id: String { rawValue }
@@ -25,9 +28,20 @@ enum ClipKind: String, CaseIterable, Identifiable {
             "chevron.left.forwardslash.chevron.right"
         case .email:
             "envelope"
+        case .image:
+            "photo"
+        case .file:
+            "doc"
+        case .richText:
+            "doc.richtext"
         case .secret:
             "lock"
         }
+    }
+
+    /// 二进制 / 附件型：内容不是纯文本，正文存到 blob，卡片按各自方式渲染。
+    var isAttachment: Bool {
+        self == .image || self == .file || self == .richText
     }
 
     var tint: Color {
@@ -55,6 +69,12 @@ enum ClipKind: String, CaseIterable, Identifiable {
             .indigo
         case .email:
             .pink
+        case .image:
+            .teal
+        case .file:
+            Color(red: 0.55, green: 0.45, blue: 0.32) // 棕色，文件气质
+        case .richText:
+            Color(red: 0.0, green: 0.48, blue: 0.6) // 深青
         case .secret:
             .orange
         }

@@ -85,6 +85,14 @@ final class ClipStore {
             }
         }
 
+        // 图片 / 文件 / 富文本附件：blob 文件名 + 回写用的 pasteboard 类型。
+        migrator.registerMigration("addAttachments") { db in
+            try db.alter(table: "clips") { table in
+                table.add(column: "attachmentFilename", .text)
+                table.add(column: "attachmentUTI", .text)
+            }
+        }
+
         try migrator.migrate(dbQueue)
     }
 
@@ -139,6 +147,8 @@ private struct ClipRecord: Codable, FetchableRecord, MutablePersistableRecord {
     var title: String
     var preview: String
     var source: String
+    var attachmentFilename: String?
+    var attachmentUTI: String?
     var createdAt: Date
     var updatedAt: Date
     var isPinned: Bool
@@ -151,6 +161,8 @@ private struct ClipRecord: Codable, FetchableRecord, MutablePersistableRecord {
         title = clip.title
         preview = clip.preview
         source = clip.source
+        attachmentFilename = clip.attachmentFilename
+        attachmentUTI = clip.attachmentUTI
         createdAt = clip.createdAt
         updatedAt = clip.updatedAt
         isPinned = clip.isPinned
@@ -165,6 +177,8 @@ private struct ClipRecord: Codable, FetchableRecord, MutablePersistableRecord {
             preview: preview,
             source: source,
             content: content,
+            attachmentFilename: attachmentFilename,
+            attachmentUTI: attachmentUTI,
             createdAt: createdAt,
             updatedAt: updatedAt,
             isPinned: isPinned,

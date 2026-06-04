@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 
 enum ClipClassifier {
@@ -16,6 +17,70 @@ enum ClipClassifier {
             preview: makePreview(for: content),
             source: source,
             content: content
+        )
+    }
+
+    /// 图片：content 用图片字节的哈希作去重键，PNG 字节存到 blob（文件名由调用方写入）。
+    static func makeImageClip(png: Data, pixelSize: CGSize?, source: String = "剪贴板") -> ClipItem {
+        let id = UUID()
+        let hash = SHA256.hash(data: png).map { String(format: "%02x", $0) }.joined()
+
+        let sizeText: String
+        if let pixelSize, pixelSize.width > 0, pixelSize.height > 0 {
+            sizeText = "图片 · \(Int(pixelSize.width))×\(Int(pixelSize.height))"
+        } else {
+            sizeText = "图片"
+        }
+
+        return ClipItem(
+            id: id,
+            kind: .image,
+            title: sizeText,
+            preview: sizeText,
+            source: source,
+            content: "image:\(hash)",
+            attachmentFilename: "\(id.uuidString).png",
+            attachmentUTI: "public.png"
+        )
+    }
+
+    /// 文件：content 用文件路径（天然去重），不写 blob，回写时按 file-url 还原。
+    static func makeFileClip(urls: [URL], source: String = "剪贴板") -> ClipItem? {
+        guard !urls.isEmpty else {
+            return nil
+        }
+
+        let paths = urls.map(\.path).joined(separator: "\n")
+        let firstName = urls[0].lastPathComponent
+        let title = urls.count > 1 ? "\(firstName) 等 \(urls.count) 个" : firstName
+
+        return ClipItem(
+            kind: .file,
+            title: title,
+            preview: paths,
+            source: source,
+            content: paths,
+            attachmentUTI: "public.file-url"
+        )
+    }
+
+    /// 富文本：content 用纯文本兜底（去重 + 纯文本粘贴），RTF 数据存到 blob。
+    static func makeRichTextClip(rtf: Data, plain: String, source: String = "剪贴板") -> ClipItem? {
+        let trimmed = plain.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            return nil
+        }
+
+        let id = UUID()
+        return ClipItem(
+            id: id,
+            kind: .richText,
+            title: makeTitle(for: trimmed, kind: .richText),
+            preview: makePreview(for: trimmed),
+            source: source,
+            content: trimmed,
+            attachmentFilename: "\(id.uuidString).rtf",
+            attachmentUTI: "public.rtf"
         )
     }
 

@@ -6,7 +6,12 @@ struct ClipItem: Identifiable, Hashable {
     let title: String
     let preview: String
     let source: String
+    /// 文本型：原始文本；附件型（图片/文件/富文本）：去重用的稳定键（哈希 / 文件路径 / 纯文本兜底）。
     let content: String
+    /// 附件型的 blob 文件名（位于 blobs 目录），图片字节 / RTF 数据等存于此；文本型为 nil。
+    let attachmentFilename: String?
+    /// 回写剪贴板时要用的 pasteboard 类型（如 public.png / public.rtf / public.file-url）；文本型为 nil。
+    let attachmentUTI: String?
     let createdAt: Date
     var updatedAt: Date
     var isPinned: Bool
@@ -19,6 +24,8 @@ struct ClipItem: Identifiable, Hashable {
         preview: String,
         source: String,
         content: String,
+        attachmentFilename: String? = nil,
+        attachmentUTI: String? = nil,
         createdAt: Date = Date(),
         updatedAt: Date = Date(),
         isPinned: Bool = false,
@@ -30,6 +37,8 @@ struct ClipItem: Identifiable, Hashable {
         self.preview = preview
         self.source = source
         self.content = content
+        self.attachmentFilename = attachmentFilename
+        self.attachmentUTI = attachmentUTI
         self.createdAt = createdAt
         self.updatedAt = updatedAt
         self.isPinned = isPinned
