@@ -3,6 +3,8 @@ import SwiftUI
 struct QuickPanelView: View {
     @StateObject private var viewModel: QuickPanelViewModel
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @FocusState private var searchFocused: Bool
+    @State private var searchExpanded = false
 
     init(viewModel: QuickPanelViewModel = QuickPanelViewModel()) {
         _viewModel = StateObject(wrappedValue: viewModel)
@@ -50,7 +52,6 @@ struct QuickPanelView: View {
     private var topBar: some View {
         HStack(spacing: 12) {
             searchField
-                .frame(maxWidth: 380)
 
             Spacer(minLength: 8)
 
@@ -60,17 +61,70 @@ struct QuickPanelView: View {
         }
         .padding(.horizontal, 16)
         .frame(height: 56)
+        .animation(reduceMotion ? nil : .spring(response: 0.32, dampingFraction: 0.85), value: isSearchActive)
     }
 
+    /// 有焦点或已有查询时视为展开。
+    private var isSearchActive: Bool {
+        searchExpanded || !viewModel.query.isEmpty
+    }
+
+    @ViewBuilder
     private var searchField: some View {
-        NativeSearchField(
-            text: $viewModel.query,
-            onSubmit: activateSelection,
-            onCancel: { NotificationCenter.default.post(name: .quickPanelDidRequestClose, object: nil) },
-            onMovePrevious: viewModel.selectPrevious,
-            onMoveNext: viewModel.selectNext
-        )
-        .frame(height: 28)
+        if isSearchActive {
+            expandedSearchField
+        } else {
+            collapsedSearchButton
+        }
+    }
+
+    /// 收起态：macOS 26 玻璃圆按钮，点击展开。
+    private var collapsedSearchButton: some View {
+        Button {
+            searchExpanded = true
+            DispatchQueue.main.async { searchFocused = true }
+        } label: {
+            Image(systemName: "magnifyingglass")
+                .font(.body.weight(.medium))
+                .frame(width: 30, height: 30)
+                .contentShape(Circle())
+        }
+        .buttonStyle(.glass)
+        .accessibilityLabel("搜索")
+    }
+
+    /// 展开态：玻璃胶囊输入框，失焦且为空时收回。
+    private var expandedSearchField: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass")
+                .foregroundStyle(.secondary)
+
+            TextField("搜索剪贴板", text: $viewModel.query)
+                .textFieldStyle(.plain)
+                .focused($searchFocused)
+                .onSubmit(activateSelection)
+
+            if !viewModel.query.isEmpty {
+                Button {
+                    viewModel.query = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .symbolRenderingMode(.hierarchical)
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("清除搜索")
+            }
+        }
+        .font(.title3)
+        .padding(.horizontal, 12)
+        .frame(width: 320, height: 30)
+        .glassEffect(in: Capsule())
+        .onChange(of: searchFocused) { _, focused in
+            if !focused, viewModel.query.isEmpty {
+                searchExpanded = false
+            }
+        }
     }
 
     /// 原生分段控件（macOS 26 自动套用 Liquid Glass）。
