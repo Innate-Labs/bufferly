@@ -87,6 +87,10 @@ final class QuickPanelViewModel: ObservableObject {
         filteredClips.filter { !$0.isPinned }
     }
 
+    var sensitiveFilteringEnabled: Bool {
+        AppSettings.shared.sensitiveFiltering
+    }
+
     var selectedClip: ClipItem? {
         guard let selectedID else {
             return filteredClips.first

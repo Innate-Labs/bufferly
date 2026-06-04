@@ -228,8 +228,11 @@ struct QuickPanelView: View {
                 .fill(Color.secondary.opacity(0.35))
                 .frame(width: 4, height: 4)
 
-            Label("敏感过滤未启用", systemImage: "lock.open")
-                .foregroundStyle(.secondary)
+            Label(
+                viewModel.sensitiveFilteringEnabled ? "敏感过滤已开启" : "敏感过滤未启用",
+                systemImage: viewModel.sensitiveFilteringEnabled ? "lock.fill" : "lock.open"
+            )
+            .foregroundStyle(.secondary)
 
             Spacer()
 
