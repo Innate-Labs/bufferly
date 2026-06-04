@@ -99,13 +99,15 @@ final class QuickPanelViewModel: ObservableObject {
         clips[index].isPinned.toggle()
     }
 
-    func pasteSelected() {
+    @discardableResult
+    func pasteSelected() -> Bool {
         guard let selectedClip else {
-            return
+            return false
         }
 
         pasteboard.clearContents()
         pasteboard.setString(selectedClip.content, forType: .string)
+        return true
     }
 
     func handleQueryChange() {

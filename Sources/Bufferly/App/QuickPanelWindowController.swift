@@ -2,6 +2,10 @@ import AppKit
 import SwiftUI
 
 final class QuickPanelWindowController: NSWindowController {
+    var isPanelVisible: Bool {
+        window?.isVisible == true
+    }
+
     init() {
         let contentView = QuickPanelView()
         let hostingView = NSHostingView(rootView: contentView)
@@ -22,8 +26,24 @@ final class QuickPanelWindowController: NSWindowController {
         window.hasShadow = true
         window.level = .floating
         window.collectionBehavior = [.moveToActiveSpace, .transient]
+        window.isReleasedWhenClosed = false
 
         super.init(window: window)
+    }
+
+    func showPanel() {
+        guard let window else {
+            return
+        }
+
+        window.center()
+        showWindow(nil)
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    func hidePanel() {
+        window?.orderOut(nil)
     }
 
     @available(*, unavailable)

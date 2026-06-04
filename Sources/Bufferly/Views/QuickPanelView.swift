@@ -45,7 +45,7 @@ struct QuickPanelView: View {
             }
         }
         .onExitCommand {
-            NSApp.keyWindow?.close()
+            NSApp.keyWindow?.orderOut(nil)
         }
     }
 
@@ -60,7 +60,9 @@ struct QuickPanelView: View {
                 .font(.system(size: 18, weight: .regular))
                 .focused($searchFocused)
                 .onSubmit {
-                    viewModel.pasteSelected()
+                    if viewModel.pasteSelected() {
+                        NotificationCenter.default.post(name: .quickPanelDidRequestPaste, object: nil)
+                    }
                 }
 
             if !viewModel.query.isEmpty {
