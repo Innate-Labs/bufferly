@@ -5,16 +5,30 @@ import Foundation
 final class HotKeyManager {
     private var hotKeyRef: EventHotKeyRef?
     private var eventHandlerRef: EventHandlerRef?
+    private var doubleTapMonitor: DoubleTapMonitor?
     private let onHotKeyPressed: () -> Void
 
     init(onHotKeyPressed: @escaping () -> Void) {
         self.onHotKeyPressed = onHotKeyPressed
     }
 
-    /// 按预设注册全局快捷键，可重复调用以切换。
+    /// 按预设注册全局快捷键，可重复调用以切换。组合键走 Carbon，双击修饰键走事件监听。
     func register(_ preset: HotKeyPreset) {
         unregister()
 
+        switch preset.activation {
+        case let .combo(keyCode, carbonModifiers):
+            registerCombo(keyCode: keyCode, carbonModifiers: carbonModifiers)
+        case let .doubleTapModifier(flag):
+            let monitor = DoubleTapMonitor(flag: flag) { [weak self] in
+                self?.onHotKeyPressed()
+            }
+            monitor.start()
+            doubleTapMonitor = monitor
+        }
+    }
+
+    private func registerCombo(keyCode: UInt32, carbonModifiers: UInt32) {
         var eventType = EventTypeSpec(
             eventClass: OSType(kEventClassKeyboard),
             eventKind: UInt32(kEventHotKeyPressed)
@@ -72,8 +86,8 @@ final class HotKeyManager {
         )
 
         RegisterEventHotKey(
-            preset.keyCode,
-            preset.carbonModifiers,
+            keyCode,
+            carbonModifiers,
             hotKeyID,
             GetApplicationEventTarget(),
             0,
@@ -91,6 +105,9 @@ final class HotKeyManager {
             RemoveEventHandler(eventHandlerRef)
             self.eventHandlerRef = nil
         }
+
+        doubleTapMonitor?.stop()
+        doubleTapMonitor = nil
     }
 
     deinit {

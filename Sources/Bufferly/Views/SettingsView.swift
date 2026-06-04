@@ -58,6 +58,15 @@ struct SettingsView: View {
                 }
             }
 
+            if settings.hotKeyPreset.requiresInputMonitoring {
+                Label(
+                    "双击修饰键需在「系统设置 → 隐私与安全性 → 辅助功能」中允许 Bufferly，否则不会触发。",
+                    systemImage: "exclamationmark.triangle.fill"
+                )
+                .font(.system(size: 11))
+                .foregroundStyle(.orange)
+            }
+
             LabeledContent("面板内") {
                 Text("←→ 选择 · Return 粘贴 · ⌥Return 仅复制 · ⌘Return 纯文本 · ⌘P 固定 · ⌘⌫ 删除 · ⌘K 动作")
                     .font(.system(size: 11))
