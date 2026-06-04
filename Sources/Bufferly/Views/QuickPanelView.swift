@@ -3,7 +3,6 @@ import SwiftUI
 struct QuickPanelView: View {
     @StateObject private var viewModel: QuickPanelViewModel
     @FocusState private var searchFocused: Bool
-    @Namespace private var pinboardNamespace
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     init(viewModel: QuickPanelViewModel = QuickPanelViewModel()) {
@@ -51,43 +50,27 @@ struct QuickPanelView: View {
     // MARK: - Top bar
 
     private var topBar: some View {
-        glassGroup {
-            HStack(spacing: 12) {
-                searchField
-                    .frame(maxWidth: 380)
+        HStack(spacing: 12) {
+            searchField
+                .frame(maxWidth: 380)
 
-                Spacer(minLength: 8)
+            Spacer(minLength: 8)
 
-                pinboardTabs
+            pinboardPicker
 
-                closeButton
-            }
+            closeButton
         }
         .padding(.horizontal, 16)
         .frame(height: 56)
     }
 
-    /// 把多个 Liquid Glass 控件包进 GlassEffectContainer（macOS 26+），
-    /// 让它们正确融合渲染；旧系统直接透传。Apple 官方要求多玻璃元素同容器。
-    @ViewBuilder
-    private func glassGroup<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
-        if #available(macOS 26.0, *) {
-            GlassEffectContainer(spacing: 8) {
-                content()
-            }
-        } else {
-            content()
-        }
-    }
-
     private var searchField: some View {
         HStack(spacing: 8) {
-            RemixIcon(name: "RemixSearch", size: 15)
+            Image(systemName: "magnifyingglass")
                 .foregroundStyle(.secondary)
 
             TextField("搜索剪贴板", text: $viewModel.query)
                 .textFieldStyle(.plain)
-                .font(.title3)
                 .focused($searchFocused)
                 .onSubmit(activateSelection)
 
@@ -95,68 +78,40 @@ struct QuickPanelView: View {
                 Button {
                     viewModel.query = ""
                 } label: {
-                    RemixIcon(name: "RemixClearFill", size: 15)
-                        .foregroundStyle(.tertiary)
+                    Image(systemName: "xmark.circle.fill")
+                        .symbolRenderingMode(.hierarchical)
+                        .foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("清除搜索")
             }
         }
+        .font(.title3)
         .padding(.horizontal, 12)
         .frame(height: 34)
         .controlGlassBackground(in: Capsule())
     }
 
-    private var pinboardTabs: some View {
-        HStack(spacing: 4) {
+    /// 原生分段控件（macOS 26 自动套用 Liquid Glass）。
+    private var pinboardPicker: some View {
+        Picker("Pinboard", selection: $viewModel.board) {
             ForEach(QuickPanelViewModel.Board.allCases) { board in
-                pinboardTab(board)
+                Text(board.rawValue).tag(board)
             }
         }
-        .padding(3)
-        .controlGlassBackground(in: Capsule())
-    }
-
-    private func pinboardTab(_ board: QuickPanelViewModel.Board) -> some View {
-        let isActive = viewModel.board == board
-
-        return Button {
-            withAnimation(reduceMotion ? nil : .spring(response: 0.32, dampingFraction: 0.78)) {
-                viewModel.board = board
-            }
-        } label: {
-            HStack(spacing: 5) {
-                Circle()
-                    .fill(board.dotColor)
-                    .frame(width: 6, height: 6)
-
-                Text(board.rawValue)
-                    .font(.callout.weight(.medium))
-                    .foregroundStyle(isActive ? .primary : .secondary)
-            }
-            .padding(.horizontal, 10)
-            .frame(height: 26)
-            .background {
-                if isActive {
-                    Capsule()
-                        .fill(Color(nsColor: .controlBackgroundColor))
-                        .shadow(color: .black.opacity(0.08), radius: 2, y: 1)
-                        .matchedGeometryEffect(id: "pinboardActive", in: pinboardNamespace)
-                }
-            }
-        }
-        .buttonStyle(.plain)
-        .accessibilityAddTraits(isActive ? .isSelected : [])
+        .pickerStyle(.segmented)
+        .labelsHidden()
+        .fixedSize()
     }
 
     private var closeButton: some View {
         Button {
             NotificationCenter.default.post(name: .quickPanelDidRequestClose, object: nil)
         } label: {
-            RemixIcon(name: "RemixClose", size: 13)
+            Image(systemName: "xmark.circle.fill")
+                .font(.title2)
+                .symbolRenderingMode(.hierarchical)
                 .foregroundStyle(.secondary)
-                .frame(width: 26, height: 26)
-                .controlGlassBackground(in: Circle())
         }
         .buttonStyle(.plain)
         .accessibilityLabel("关闭面板")
