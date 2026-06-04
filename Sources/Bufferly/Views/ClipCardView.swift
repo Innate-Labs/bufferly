@@ -35,7 +35,7 @@ struct ClipCardView: View {
         .overlay {
             RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .strokeBorder(isSelected ? Color.accentColor : Color.primary.opacity(0.08),
-                              lineWidth: isSelected ? 3 : 1)
+                              lineWidth: isSelected ? 2 : 1)
         }
         .shadow(color: .black.opacity(0.05), radius: 1, y: 1)
         .shadow(color: .black.opacity(0.07), radius: 6, y: 3)

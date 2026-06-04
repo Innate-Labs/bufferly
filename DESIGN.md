@@ -511,3 +511,32 @@ MVP UI 验收：
 - 跟随系统语义色：类型色只用于卡片头部，不扩散成全局品牌色；正文仍用系统色。
 - 不自定义品牌字体、支持 Light / Dark、尊重 Reduce Motion / Increase Contrast。
 - 不做营销 hero、不做 Web dashboard 味、玻璃拟态不过重影响可读性。
+
+### (b) v0.3：全面对齐 macOS 26（Tahoe）Liquid Glass 范式
+
+日期：2026-06-05
+决策人：项目所有者（「完全按照 Apple 范式来」「全部都 Apple」）。
+
+**改了什么**
+
+- 部署目标提到 `macOS 26`，作为完整的 macOS 26 app（`Package.swift` + 打包 `LSMinimumSystemVersion`）。
+- 顶部控件接入官方 Liquid Glass：搜索框用 `.glassEffect(in: Capsule())`，分段控件用系统 `.pickerStyle(.segmented)`（系统自动套玻璃）。
+- 面板底层保持 `.thinMaterial` 实底（不是玻璃），玻璃只留给浮在内容之上的控件层——遵守官方「玻璃用于控件层、内容层不用玻璃、不堆叠玻璃」。
+- 顶部控件改用 SF Symbols + 原生组件，去掉自绘 PNG 图标封装（删除 RemixIcon / NativeSearchField 等）。
+- 搜索框定为常驻玻璃药丸（曾尝试「默认收起、点击展开」，因收起态不好看回退；见对话）。
+- 去掉右上角关闭按钮：呼出式浮层靠 Esc / 点外部 / 再按快捷键关闭，不放关闭按钮（Spotlight / Raycast 范式）。
+- 去掉顶栏下的硬 `Divider`：Tahoe 浮动工具栏让内容从下方透出，不用硬分割线。
+- 顶部控件内边距与卡片墙对齐为 20pt，符合同心圆 `外圆34 = 内圆 + 边距`，分段控件不再顶到 34pt 外圆弧；搜索药丸与分段控件用 `.controlSize(.large)` 配齐高度读成一排。
+- 卡片选中描边 3pt → 2pt，更贴近 Apple 选中惯例（仍以「描边 + 抬起 + 阴影」非颜色方式表达选中，满足 §12）。
+
+**为什么改**
+
+- 项目所有者要求「完全按照 Apple 范式」，且开发机已是 macOS 26（SDK / 部署目标可用真正的 Liquid Glass）。
+- 对照官方 Liquid Glass 文档审查：架构层（玻璃只给控件层、内容卡片实底、不堆叠玻璃）本就合规，本次主要修掉「不够 Tahoe」的细节（硬分割线、控件尺寸/对齐、字号过大、冗余关闭按钮）。
+
+**仍然保留的原则（未被本次推翻）**
+
+- (a) 的 Paste 式彩色卡片墙不变：彩色头部仅用于内容卡片，不是玻璃，不与「玻璃只给控件层」冲突。
+- 原生优先、键盘优先、低打扰、尊重 Reduce Motion / Increase Contrast；系统组件自动适配「降低透明度」。
+
+参考：Apple「Liquid Glass」技术总览 https://developer.apple.com/documentation/TechnologyOverviews/liquid-glass

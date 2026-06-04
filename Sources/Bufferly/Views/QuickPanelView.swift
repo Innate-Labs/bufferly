@@ -4,7 +4,6 @@ struct QuickPanelView: View {
     @StateObject private var viewModel: QuickPanelViewModel
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @FocusState private var searchFocused: Bool
-    @State private var searchExpanded = false
 
     init(viewModel: QuickPanelViewModel = QuickPanelViewModel()) {
         _viewModel = StateObject(wrappedValue: viewModel)
@@ -13,8 +12,6 @@ struct QuickPanelView: View {
     var body: some View {
         VStack(spacing: 0) {
             topBar
-
-            Divider()
 
             cardWall
         }
@@ -56,45 +53,16 @@ struct QuickPanelView: View {
             Spacer(minLength: 8)
 
             pinboardPicker
-
-            closeButton
         }
-        .padding(.horizontal, 16)
+        // 内边距与卡片墙(20)对齐：外圆角(34) = 控件圆角 + 边距，让顶部控件与外圆同心，
+        // 右上角分段控件因此避开 34pt 圆弧，不再「顶到圆角」。
+        .padding(.horizontal, 20)
+        .padding(.top, 6)
         .frame(height: 56)
-        .animation(reduceMotion ? nil : .spring(response: 0.32, dampingFraction: 0.85), value: isSearchActive)
     }
 
-    /// 有焦点或已有查询时视为展开。
-    private var isSearchActive: Bool {
-        searchExpanded || !viewModel.query.isEmpty
-    }
-
-    @ViewBuilder
+    /// 常驻玻璃搜索框（macOS 26 工具栏药丸样式）。
     private var searchField: some View {
-        if isSearchActive {
-            expandedSearchField
-        } else {
-            collapsedSearchButton
-        }
-    }
-
-    /// 收起态：macOS 26 玻璃圆按钮，点击展开。
-    private var collapsedSearchButton: some View {
-        Button {
-            searchExpanded = true
-            DispatchQueue.main.async { searchFocused = true }
-        } label: {
-            Image(systemName: "magnifyingglass")
-                .font(.body.weight(.medium))
-                .frame(width: 30, height: 30)
-                .contentShape(Circle())
-        }
-        .buttonStyle(.glass)
-        .accessibilityLabel("搜索")
-    }
-
-    /// 展开态：玻璃胶囊输入框，失焦且为空时收回。
-    private var expandedSearchField: some View {
         HStack(spacing: 8) {
             Image(systemName: "magnifyingglass")
                 .foregroundStyle(.secondary)
@@ -116,15 +84,12 @@ struct QuickPanelView: View {
                 .accessibilityLabel("清除搜索")
             }
         }
-        .font(.title3)
-        .padding(.horizontal, 12)
-        .frame(width: 320, height: 30)
+        // 原生工具栏搜索字号（body），不是标题级；避免文字撑满药丸。
+        .font(.body)
+        .padding(.horizontal, 14)
+        .frame(maxWidth: 320)
+        .frame(height: 32)
         .glassEffect(in: Capsule())
-        .onChange(of: searchFocused) { _, focused in
-            if !focused, viewModel.query.isEmpty {
-                searchExpanded = false
-            }
-        }
     }
 
     /// 原生分段控件（macOS 26 自动套用 Liquid Glass）。
@@ -136,20 +101,9 @@ struct QuickPanelView: View {
         }
         .pickerStyle(.segmented)
         .labelsHidden()
+        // 用 large 控件尺寸配齐搜索药丸高度，让顶部两个控件读成同一排。
+        .controlSize(.large)
         .fixedSize()
-    }
-
-    private var closeButton: some View {
-        Button {
-            NotificationCenter.default.post(name: .quickPanelDidRequestClose, object: nil)
-        } label: {
-            Image(systemName: "xmark.circle.fill")
-                .font(.title2)
-                .symbolRenderingMode(.hierarchical)
-                .foregroundStyle(.secondary)
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("关闭面板")
     }
 
     // MARK: - Card wall
