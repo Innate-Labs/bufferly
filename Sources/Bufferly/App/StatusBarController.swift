@@ -6,7 +6,7 @@ final class StatusBarController: NSObject {
     var onShowSettings: (() -> Void)?
 
     private let statusItem: NSStatusItem
-    private let togglePanelItem = NSMenuItem(title: "Show Quick Panel", action: #selector(togglePanel(_:)), keyEquivalent: "")
+    private let togglePanelItem = NSMenuItem(title: "显示快速面板", action: #selector(togglePanel(_:)), keyEquivalent: "")
 
     override init() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
@@ -17,13 +17,12 @@ final class StatusBarController: NSObject {
     }
 
     func setPanelVisible(_ isVisible: Bool) {
-        togglePanelItem.title = isVisible ? "Hide Quick Panel" : "Show Quick Panel"
+        togglePanelItem.title = isVisible ? "隐藏快速面板" : "显示快速面板"
     }
 
     private func configureStatusItem() {
         if let button = statusItem.button {
-            button.image = statusBarImage()
-            button.image?.isTemplate = true
+            button.image = Self.makeStatusBarImage()
             button.toolTip = "Bufferly"
         }
 
@@ -34,7 +33,7 @@ final class StatusBarController: NSObject {
 
         menu.addItem(
             NSMenuItem(
-                title: "Settings...",
+                title: "设置...",
                 action: #selector(showSettings(_:)),
                 keyEquivalent: ","
             )
@@ -44,7 +43,7 @@ final class StatusBarController: NSObject {
         menu.addItem(.separator())
 
         let quitItem = NSMenuItem(
-            title: "Quit Bufferly",
+            title: "退出 Bufferly",
             action: #selector(NSApplication.terminate(_:)),
             keyEquivalent: "q"
         )
@@ -52,6 +51,20 @@ final class StatusBarController: NSObject {
         menu.addItem(quitItem)
 
         statusItem.menu = menu
+    }
+
+    /// 菜单栏图标：优先用 Resources 里的模板图（系统按浅/深色菜单栏自动着色），失败时回退 SF Symbol。
+    private static func makeStatusBarImage() -> NSImage? {
+        if
+            let url = Bundle.module.url(forResource: "StatusBarIcon", withExtension: "png"),
+            let image = NSImage(contentsOf: url)
+        {
+            image.size = NSSize(width: 18, height: 18)
+            image.isTemplate = true
+            return image
+        }
+
+        return NSImage(systemSymbolName: "doc.on.clipboard", accessibilityDescription: "Bufferly")
     }
 
     @objc
@@ -62,17 +75,5 @@ final class StatusBarController: NSObject {
     @objc
     private func showSettings(_ sender: Any?) {
         onShowSettings?()
-    }
-
-    private func statusBarImage() -> NSImage? {
-        if
-            let url = Bundle.module.url(forResource: "StatusBarIcon", withExtension: "png"),
-            let image = NSImage(contentsOf: url)
-        {
-            image.size = NSSize(width: 18, height: 18)
-            return image
-        }
-
-        return NSImage(systemSymbolName: "doc.on.clipboard", accessibilityDescription: "Bufferly")
     }
 }
