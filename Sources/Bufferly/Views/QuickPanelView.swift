@@ -45,7 +45,7 @@ struct QuickPanelView: View {
             }
         }
         .onExitCommand {
-            NSApp.keyWindow?.orderOut(nil)
+            NotificationCenter.default.post(name: .quickPanelDidRequestClose, object: nil)
         }
     }
 

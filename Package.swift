@@ -18,6 +18,9 @@ let package = Package(
             name: "Bufferly",
             dependencies: [
                 .product(name: "GRDB", package: "GRDB.swift")
+            ],
+            resources: [
+                .process("Resources")
             ]
         )
     ]

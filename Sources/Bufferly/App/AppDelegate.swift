@@ -5,9 +5,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var quickPanelWindowController: QuickPanelWindowController?
     private var settingsWindowController: SettingsWindowController?
     private var hotKeyManager: HotKeyManager?
+    private var statusBarController: StatusBarController?
     private var pasteTargetApplication: NSRunningApplication?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        configureApplicationIcon()
         configureMenu()
         configureNotifications()
 
@@ -19,7 +21,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         hotKeyManager?.registerOptionSpace()
 
+        let statusBarController = StatusBarController()
+        statusBarController.onTogglePanel = { [weak self] in
+            self?.toggleQuickPanel()
+        }
+        statusBarController.onShowSettings = { [weak self] in
+            self?.showSettings(nil)
+        }
+        self.statusBarController = statusBarController
+
         controller.showPanel()
+        updateStatusBarPanelState()
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -37,11 +49,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             updatePasteTargetApplication()
             quickPanelWindowController.showPanel()
         }
+
+        updateStatusBarPanelState()
     }
 
     private func handlePasteRequest() {
         if AppSettings.shared.hideAfterPaste {
             quickPanelWindowController?.hidePanel()
+            updateStatusBarPanelState()
         }
 
         if AppSettings.shared.autoPasteAfterSelection {
@@ -59,6 +74,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         pasteTargetApplication = frontmostApplication
     }
 
+    private func updateStatusBarPanelState() {
+        statusBarController?.setPanelVisible(quickPanelWindowController?.isPanelVisible == true)
+    }
+
+    private func configureApplicationIcon() {
+        guard
+            let url = Bundle.module.url(forResource: "AppIcon-1024", withExtension: "png"),
+            let image = NSImage(contentsOf: url)
+        else {
+            return
+        }
+
+        NSApp.applicationIconImage = image
+    }
+
     private func configureNotifications() {
         NotificationCenter.default.addObserver(
             forName: .quickPanelDidRequestPaste,
@@ -67,6 +97,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ) { [weak self] _ in
             Task { @MainActor in
                 self?.handlePasteRequest()
+            }
+        }
+
+        NotificationCenter.default.addObserver(
+            forName: .quickPanelDidRequestClose,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.quickPanelWindowController?.hidePanel()
+                self?.updateStatusBarPanelState()
             }
         }
     }
