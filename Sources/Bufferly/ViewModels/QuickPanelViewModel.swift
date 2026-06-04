@@ -10,12 +10,14 @@ final class QuickPanelViewModel: ObservableObject {
 
     private let maxHistoryCount = 500
     private let pasteboard: NSPasteboard
+    private let clipStore: ClipStore?
     private lazy var clipboardMonitor = ClipboardMonitor(pasteboard: pasteboard) { [weak self] text in
         self?.addClipboardText(text)
     }
 
-    init(pasteboard: NSPasteboard = .general) {
+    init(pasteboard: NSPasteboard = .general, clipStore: ClipStore? = try? ClipStore()) {
         self.pasteboard = pasteboard
+        self.clipStore = clipStore
     }
 
     var filteredClips: [ClipItem] {
@@ -50,6 +52,7 @@ final class QuickPanelViewModel: ObservableObject {
     }
 
     func startMonitoring() {
+        loadPersistedClips()
         clipboardMonitor.start()
         selectFirstIfNeeded()
     }
@@ -71,6 +74,7 @@ final class QuickPanelViewModel: ObservableObject {
             clips.removeLast(clips.count - maxHistoryCount)
         }
 
+        persist(newClip)
         selectedID = filteredClips.first?.id
     }
 
@@ -97,6 +101,7 @@ final class QuickPanelViewModel: ObservableObject {
 
         selectedID = clipID
         clips[index].isPinned.toggle()
+        persistPinState(for: clips[index])
     }
 
     @discardableResult
@@ -117,6 +122,42 @@ final class QuickPanelViewModel: ObservableObject {
     private func selectFirstIfNeeded() {
         if selectedID == nil || selectedClip == nil {
             selectedID = filteredClips.first?.id
+        }
+    }
+
+    private func loadPersistedClips() {
+        guard let clipStore else {
+            return
+        }
+
+        do {
+            clips = try clipStore.fetchClips()
+        } catch {
+            print("Failed to load clips: \(error)")
+        }
+    }
+
+    private func persist(_ clip: ClipItem) {
+        guard let clipStore else {
+            return
+        }
+
+        do {
+            try clipStore.upsert(clip)
+        } catch {
+            print("Failed to persist clip: \(error)")
+        }
+    }
+
+    private func persistPinState(for clip: ClipItem) {
+        guard let clipStore else {
+            return
+        }
+
+        do {
+            try clipStore.updatePin(clipID: clip.id, isPinned: clip.isPinned)
+        } catch {
+            print("Failed to persist pin state: \(error)")
         }
     }
 

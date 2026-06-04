@@ -4,13 +4,13 @@
 
 ## 项目状态
 
-- M1 进行中：Swift Package macOS app 骨架已初始化，Quick Panel 已接入真实文本剪贴板监听、内存历史、去重、搜索、pin、回车写回剪贴板、固定 `Option + Space` 全局快捷键呼出 / 隐藏，以及回车后隐藏面板并尝试粘贴回原前台 App。
-- 尚未接入 SQLite 持久化、完整敏感内容过滤、快捷键配置和设置页。自动粘贴依赖 macOS 辅助功能权限；权限不可用时至少保证内容已写回剪贴板。
+- M2 进行中：Swift Package macOS app 骨架已初始化，Quick Panel 已接入真实文本剪贴板监听、GRDB/SQLite 本地持久化、去重、搜索、pin、回车写回剪贴板、固定 `Option + Space` 全局快捷键呼出 / 隐藏，以及回车后隐藏面板并尝试粘贴回原前台 App。
+- 尚未接入快捷键配置和设置页。自动粘贴依赖 macOS 辅助功能权限；权限不可用时至少保证内容已写回剪贴板。敏感内容暂不默认过滤，API key / token 等内容会保留在本地历史中。
 
 ## 技术栈
 
 - Swift + SwiftUI + AppKit。
-- SQLite 用于本地历史、pin 和设置持久化。
+- GRDB + SQLite 用于本地历史、pin 和设置持久化。
 - Keychain 用于保存加密密钥或敏感配置。
 
 ## 产品方向
