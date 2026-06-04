@@ -13,7 +13,7 @@ final class SettingsWindowController: NSWindowController {
             defer: false
         )
 
-        window.title = "Bufferly Settings"
+        window.title = "Bufferly 设置"
         window.contentView = hostingView
         window.center()
         window.isReleasedWhenClosed = false

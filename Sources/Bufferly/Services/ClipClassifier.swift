@@ -1,7 +1,7 @@
 import Foundation
 
 enum ClipClassifier {
-    static func makeClip(from rawText: String, source: String = "Clipboard") -> ClipItem? {
+    static func makeClip(from rawText: String, source: String = "剪贴板") -> ClipItem? {
         let content = rawText.trimmingCharacters(in: .whitespacesAndNewlines)
 
         guard !content.isEmpty else {

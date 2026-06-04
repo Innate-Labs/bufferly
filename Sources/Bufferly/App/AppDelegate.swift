@@ -14,6 +14,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         configureNotifications()
 
         let controller = QuickPanelWindowController()
+        controller.onVisibilityChange = { [weak self] _ in
+            self?.updateStatusBarPanelState()
+        }
         quickPanelWindowController = controller
 
         hotKeyManager = HotKeyManager { [weak self] in
@@ -119,7 +122,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         appMenu.addItem(
             NSMenuItem(
-                title: "Settings...",
+                title: "设置...",
                 action: #selector(showSettings(_:)),
                 keyEquivalent: ","
             )
@@ -127,7 +130,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         appMenu.addItem(.separator())
         appMenu.addItem(
             NSMenuItem(
-                title: "Quit Bufferly",
+                title: "退出 Bufferly",
                 action: #selector(NSApplication.terminate(_:)),
                 keyEquivalent: "q"
             )

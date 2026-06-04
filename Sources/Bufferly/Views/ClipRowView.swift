@@ -45,7 +45,7 @@ struct ClipRowView: View {
                             .foregroundStyle(clip.isPinned ? .secondary : .tertiary)
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel(clip.isPinned ? "Unpin clip" : "Pin clip")
+                    .accessibilityLabel(clip.isPinned ? "取消固定" : "固定")
                 }
 
                 Text(clip.source)
@@ -89,6 +89,6 @@ struct ClipRowView: View {
     }
 
     private var accessibilityText: String {
-        "\(clip.kind.rawValue), \(clip.title), \(clip.preview), copied \(clip.relativeTime) from \(clip.source)"
+        "\(clip.kind.rawValue)，\(clip.title)，\(clip.preview)，\(clip.relativeTime)前复制自 \(clip.source)"
     }
 }

@@ -40,24 +40,24 @@ struct ClipItem: Identifiable, Hashable {
         let elapsed = max(0, Int(Date().timeIntervalSince(updatedAt)))
 
         if elapsed < 60 {
-            return "now"
+            return "刚刚"
         }
 
         let minutes = elapsed / 60
         if minutes < 60 {
-            return "\(minutes)m"
+            return "\(minutes) 分钟"
         }
 
         let hours = minutes / 60
         if hours < 24 {
-            return "\(hours)h"
+            return "\(hours) 小时"
         }
 
         let days = hours / 24
         if days == 1 {
-            return "Yesterday"
+            return "昨天"
         }
 
-        return "\(days)d"
+        return "\(days) 天"
     }
 }

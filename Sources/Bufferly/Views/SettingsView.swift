@@ -14,13 +14,13 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
-            Section("General") {
-                Toggle("Hide panel after paste", isOn: $settings.hideAfterPaste)
-                Toggle("Paste into previous app after selection", isOn: $settings.autoPasteAfterSelection)
+            Section("通用") {
+                Toggle("粘贴后隐藏面板", isOn: $settings.hideAfterPaste)
+                Toggle("选择后粘贴到上一应用", isOn: $settings.autoPasteAfterSelection)
 
                 Stepper(value: $settings.maxHistoryCount, in: 50...2_000, step: 50) {
                     HStack {
-                        Text("Max history")
+                        Text("最大历史数量")
                         Spacer()
                         Text("\(settings.maxHistoryCount)")
                             .foregroundStyle(.secondary)
@@ -28,10 +28,10 @@ struct SettingsView: View {
                 }
             }
 
-            Section("Permissions") {
-                LabeledContent("Paste automation") {
+            Section("权限") {
+                LabeledContent("自动粘贴") {
                     Label(
-                        eventPostingPermission.isGranted ? "Allowed" : "Needs access",
+                        eventPostingPermission.isGranted ? "已允许" : "需要授权",
                         systemImage: eventPostingPermission.isGranted ? "checkmark.circle.fill" : "exclamationmark.triangle.fill"
                     )
                     .foregroundStyle(eventPostingPermission.isGranted ? .green : .orange)
@@ -41,14 +41,14 @@ struct SettingsView: View {
                     Button {
                         eventPostingPermission.requestAccess()
                     } label: {
-                        Label("Request Access", systemImage: "hand.raised")
+                        Label("请求授权", systemImage: "hand.raised")
                     }
                     .disabled(eventPostingPermission.isGranted)
 
                     Button {
                         eventPostingPermission.refresh()
                     } label: {
-                        Label("Refresh", systemImage: "arrow.clockwise")
+                        Label("刷新", systemImage: "arrow.clockwise")
                     }
 
                     Spacer()
@@ -56,14 +56,14 @@ struct SettingsView: View {
                     Button {
                         eventPostingPermission.openPrivacySettings()
                     } label: {
-                        Label("Open System Settings", systemImage: "gear")
+                        Label("打开系统设置", systemImage: "gear")
                     }
                     .disabled(eventPostingPermission.isGranted)
                 }
             }
 
-            Section("Data") {
-                LabeledContent("Storage") {
+            Section("数据") {
+                LabeledContent("存储位置") {
                     Text(ClipStore.databasePath)
                         .foregroundStyle(.secondary)
                         .lineLimit(2)

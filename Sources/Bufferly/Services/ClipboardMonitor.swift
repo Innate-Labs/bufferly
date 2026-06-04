@@ -37,6 +37,10 @@ final class ClipboardMonitor {
         timer = nil
     }
 
+    func syncToCurrentChangeCount() {
+        lastChangeCount = pasteboard.changeCount
+    }
+
     private func poll() {
         let changeCount = pasteboard.changeCount
 
