@@ -22,6 +22,7 @@ struct QuickPanelView: View {
         }
         .frame(maxWidth: .infinity)
         .frame(height: QuickPanelView.panelHeight)
+        .background(hiddenShortcuts)
         .background(.regularMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
         .overlay {
@@ -175,6 +176,9 @@ struct QuickPanelView: View {
                                 onTogglePin: { viewModel.togglePin(clipID: clip.id) }
                             )
                             .id(clip.id)
+                            .contextMenu {
+                                clipActions(for: clip)
+                            }
                         }
                     }
                     .padding(.horizontal, 20)
@@ -249,6 +253,19 @@ struct QuickPanelView: View {
             .keyboardShortcut("p", modifiers: [.command])
             .disabled(viewModel.selectedClip == nil)
 
+            if let selectedClip = viewModel.selectedClip {
+                Menu {
+                    clipActions(for: selectedClip)
+                } label: {
+                    Text("⌘K 动作")
+                        .foregroundStyle(.secondary)
+                }
+                .menuStyle(.borderlessButton)
+                .menuIndicator(.hidden)
+                .fixedSize()
+                .keyboardShortcut("k", modifiers: [.command])
+            }
+
             Text("Esc")
                 .keyboardHint()
             Text("关闭")
@@ -261,9 +278,76 @@ struct QuickPanelView: View {
 
     // MARK: - Actions
 
+    /// 卡片右键 / ⌘K 共用的动作列表。
+    @ViewBuilder
+    private func clipActions(for clip: ClipItem) -> some View {
+        Button("粘贴") {
+            viewModel.selectedID = clip.id
+            activateSelection()
+        }
+        .disabled(clip.isSensitive)
+
+        Button("复制") {
+            viewModel.selectedID = clip.id
+            copyOnlyAndClose()
+        }
+        .disabled(clip.isSensitive)
+
+        Button(clip.isPinned ? "取消固定" : "固定") {
+            viewModel.togglePin(clipID: clip.id)
+        }
+
+        if clip.kind == .json {
+            Divider()
+            Button("格式化 JSON") {
+                viewModel.applyTransform(ClipTransform.formatJSON, to: clip.id)
+            }
+            Button("压缩 JSON") {
+                viewModel.applyTransform(ClipTransform.minifyJSON, to: clip.id)
+            }
+        }
+
+        if clip.kind == .url {
+            Divider()
+            Button("清理 URL（去 tracking 参数）") {
+                viewModel.applyTransform(ClipTransform.cleanURL, to: clip.id)
+            }
+        }
+
+        Divider()
+        Button("删除", role: .destructive) {
+            viewModel.delete(clipID: clip.id)
+        }
+    }
+
+    /// 隐藏的键盘快捷键宿主：⌥↵ 仅复制、⌘↵ 纯文本粘贴、⌘⌫ 删除。
+    private var hiddenShortcuts: some View {
+        ZStack {
+            Button("", action: copyOnlyAndClose)
+                .keyboardShortcut(.return, modifiers: .option)
+
+            Button("", action: activateSelection)
+                .keyboardShortcut(.return, modifiers: .command)
+
+            Button("", action: viewModel.deleteSelected)
+                .keyboardShortcut(.delete, modifiers: .command)
+        }
+        .opacity(0)
+        .frame(width: 0, height: 0)
+        .accessibilityHidden(true)
+        .disabled(viewModel.selectedClip == nil)
+    }
+
     private func activateSelection() {
         if viewModel.pasteSelected() {
             NotificationCenter.default.post(name: .quickPanelDidRequestPaste, object: nil)
+        }
+    }
+
+    /// 仅复制到剪贴板、不自动粘贴，然后关闭面板。
+    private func copyOnlyAndClose() {
+        if viewModel.pasteSelected() {
+            NotificationCenter.default.post(name: .quickPanelDidRequestClose, object: nil)
         }
     }
 }

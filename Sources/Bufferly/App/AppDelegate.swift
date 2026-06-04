@@ -22,7 +22,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         hotKeyManager = HotKeyManager { [weak self] in
             self?.toggleQuickPanel()
         }
-        hotKeyManager?.registerOptionSpace()
+        hotKeyManager?.register(AppSettings.shared.hotKeyPreset)
 
         let statusBarController = StatusBarController()
         statusBarController.onTogglePanel = { [weak self] in
@@ -111,6 +111,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             Task { @MainActor in
                 self?.quickPanelWindowController?.hidePanel()
                 self?.updateStatusBarPanelState()
+            }
+        }
+
+        NotificationCenter.default.addObserver(
+            forName: .hotKeyPresetDidChange,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.hotKeyManager?.register(AppSettings.shared.hotKeyPreset)
             }
         }
     }

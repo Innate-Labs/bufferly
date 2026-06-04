@@ -47,6 +47,17 @@ final class QuickPanelViewModel: ObservableObject {
     ) {
         self.pasteboard = pasteboard
         self.clipStore = clipStore
+
+        NotificationCenter.default.addObserver(
+            forName: .clearHistoryRequested,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            let keepPinned = (notification.userInfo?["keepPinned"] as? Bool) ?? true
+            Task { @MainActor in
+                self?.clearHistory(keepPinned: keepPinned)
+            }
+        }
     }
 
     var filteredClips: [ClipItem] {
@@ -88,11 +99,62 @@ final class QuickPanelViewModel: ObservableObject {
     }
 
     func addClipboardText(_ text: String) {
-        guard var newClip = ClipClassifier.makeClip(from: text) else {
+        let frontmost = NSWorkspace.shared.frontmostApplication
+
+        // 排除特定 App：来源在排除列表内则不采集。
+        if
+            let bundleID = frontmost?.bundleIdentifier,
+            AppSettings.shared.excludedBundleIDs.contains(bundleID)
+        {
             return
         }
 
-        if let existingIndex = clips.firstIndex(where: { $0.content == newClip.content }) {
+        let source = frontmost?.localizedName ?? "剪贴板"
+
+        var newClip: ClipItem
+        if AppSettings.shared.sensitiveFiltering, SensitiveContentFilter.isSensitive(text) {
+            // 命中敏感内容：要么丢弃，要么留一个不含明文的脱敏占位。
+            guard AppSettings.shared.storeSensitivePlaceholder else {
+                return
+            }
+            newClip = ClipClassifier.makeMaskedSecret(source: source)
+        } else {
+            guard let clip = ClipClassifier.makeClip(from: text, source: source) else {
+                return
+            }
+            newClip = clip
+        }
+
+        register(newClip)
+    }
+
+    /// 对选中条目套用一个转换（JSON 格式化/压缩、URL 清理），结果写回剪贴板并作为新条目。
+    /// 返回是否成功（内容不适用该转换时返回 false）。
+    @discardableResult
+    func applyTransform(_ transform: (String) -> String?, to clipID: ClipItem.ID) -> Bool {
+        guard
+            let clip = clips.first(where: { $0.id == clipID }),
+            !clip.isSensitive,
+            let result = transform(clip.content),
+            let transformed = ClipClassifier.makeClip(from: result, source: clip.source)
+        else {
+            return false
+        }
+
+        pasteboard.clearContents()
+        pasteboard.setString(result, forType: .string)
+        clipboardMonitor.syncToCurrentChangeCount()
+        register(transformed)
+        return true
+    }
+
+    /// 去重后插入到列表头并持久化，同时把选中移到它。
+    private func register(_ clip: ClipItem) {
+        var newClip = clip
+
+        if let existingIndex = clips.firstIndex(where: {
+            $0.content == newClip.content && $0.isSensitive == newClip.isSensitive
+        }) {
             var existing = clips.remove(at: existingIndex)
             existing.updatedAt = Date()
             newClip = existing
@@ -134,9 +196,53 @@ final class QuickPanelViewModel: ObservableObject {
         persistPinState(for: clips[index])
     }
 
+    func deleteSelected() {
+        guard let selectedClip else {
+            return
+        }
+
+        delete(clipID: selectedClip.id)
+    }
+
+    func delete(clipID: ClipItem.ID) {
+        guard let index = clips.firstIndex(where: { $0.id == clipID }) else {
+            return
+        }
+
+        // 删除后把选中移到相邻项，保持键盘流不中断。
+        let visibleBefore = filteredClips
+        let removedVisibleIndex = visibleBefore.firstIndex(where: { $0.id == clipID })
+
+        clips.remove(at: index)
+        persistDelete(clipID: clipID)
+
+        let visibleAfter = filteredClips
+        if let removedVisibleIndex {
+            let nextIndex = min(removedVisibleIndex, visibleAfter.count - 1)
+            selectedID = nextIndex >= 0 ? visibleAfter[nextIndex].id : nil
+        } else {
+            selectedID = visibleAfter.first?.id
+        }
+    }
+
+    func clearHistory(keepPinned: Bool) {
+        clips = keepPinned ? clips.filter(\.isPinned) : []
+        selectedID = filteredClips.first?.id
+
+        guard let clipStore else {
+            return
+        }
+
+        do {
+            try clipStore.clear(keepPinned: keepPinned)
+        } catch {
+            print("Failed to clear history: \(error)")
+        }
+    }
+
     @discardableResult
     func pasteSelected() -> Bool {
-        guard let selectedClip else {
+        guard let selectedClip, !selectedClip.isSensitive else {
             return false
         }
 
@@ -189,6 +295,18 @@ final class QuickPanelViewModel: ObservableObject {
             try clipStore.updatePin(clipID: clip.id, isPinned: clip.isPinned)
         } catch {
             print("Failed to persist pin state: \(error)")
+        }
+    }
+
+    private func persistDelete(clipID: ClipItem.ID) {
+        guard let clipStore else {
+            return
+        }
+
+        do {
+            try clipStore.delete(clipID: clipID)
+        } catch {
+            print("Failed to delete clip: \(error)")
         }
     }
 

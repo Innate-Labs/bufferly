@@ -11,7 +11,8 @@ final class HotKeyManager {
         self.onHotKeyPressed = onHotKeyPressed
     }
 
-    func registerOptionSpace() {
+    /// 按预设注册全局快捷键，可重复调用以切换。
+    func register(_ preset: HotKeyPreset) {
         unregister()
 
         var eventType = EventTypeSpec(
@@ -71,8 +72,8 @@ final class HotKeyManager {
         )
 
         RegisterEventHotKey(
-            UInt32(kVK_Space),
-            UInt32(optionKey),
+            preset.keyCode,
+            preset.carbonModifiers,
             hotKeyID,
             GetApplicationEventTarget(),
             0,

@@ -19,6 +19,18 @@ enum ClipClassifier {
         )
     }
 
+    /// 命中敏感规则时的脱敏占位：不保存明文（content 为空），仅留一个 lock 卡片。
+    static func makeMaskedSecret(source: String = "剪贴板") -> ClipItem {
+        ClipItem(
+            kind: .secret,
+            title: "敏感内容已隐藏",
+            preview: "敏感内容已隐藏",
+            source: source,
+            content: "",
+            isSensitive: true
+        )
+    }
+
     private static func detectKind(for content: String) -> ClipKind {
         if isEmail(content) {
             return .email

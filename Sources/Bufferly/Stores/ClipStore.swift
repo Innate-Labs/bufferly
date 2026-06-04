@@ -46,6 +46,27 @@ final class ClipStore {
         }
     }
 
+    func delete(clipID: ClipItem.ID) throws {
+        _ = try dbQueue.write { db in
+            try ClipRecord
+                .filter(Column("id") == clipID.uuidString)
+                .deleteAll(db)
+        }
+    }
+
+    /// 清空历史。`keepPinned` 为真时保留已固定片段。
+    func clear(keepPinned: Bool) throws {
+        _ = try dbQueue.write { db in
+            if keepPinned {
+                try ClipRecord
+                    .filter(Column("isPinned") == false)
+                    .deleteAll(db)
+            } else {
+                try ClipRecord.deleteAll(db)
+            }
+        }
+    }
+
     private func migrate() throws {
         var migrator = DatabaseMigrator()
 
