@@ -3,6 +3,7 @@ import SwiftUI
 struct QuickPanelView: View {
     @StateObject private var viewModel: QuickPanelViewModel
     @FocusState private var searchFocused: Bool
+    @Namespace private var pinboardNamespace
 
     init(viewModel: QuickPanelViewModel = QuickPanelViewModel()) {
         _viewModel = StateObject(wrappedValue: viewModel)
@@ -19,7 +20,7 @@ struct QuickPanelView: View {
         .frame(maxWidth: .infinity)
         .frame(height: QuickPanelView.panelHeight)
         .background(hiddenShortcuts)
-        .background(.regularMaterial)
+        .background(.ultraThinMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 20, style: .continuous)
@@ -68,8 +69,7 @@ struct QuickPanelView: View {
 
     private var searchField: some View {
         HStack(spacing: 8) {
-            Image(systemName: "magnifyingglass")
-                .font(.system(size: 14, weight: .medium))
+            RemixIcon(name: "RemixSearch", size: 15)
                 .foregroundStyle(.secondary)
 
             TextField("搜索剪贴板", text: $viewModel.query)
@@ -82,8 +82,7 @@ struct QuickPanelView: View {
                 Button {
                     viewModel.query = ""
                 } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 14, weight: .medium))
+                    RemixIcon(name: "RemixClearFill", size: 15)
                         .foregroundStyle(.tertiary)
                 }
                 .buttonStyle(.plain)
@@ -111,7 +110,9 @@ struct QuickPanelView: View {
         let isActive = viewModel.board == board
 
         return Button {
-            viewModel.board = board
+            withAnimation(.spring(response: 0.32, dampingFraction: 0.78)) {
+                viewModel.board = board
+            }
         } label: {
             HStack(spacing: 5) {
                 Circle()
@@ -126,8 +127,10 @@ struct QuickPanelView: View {
             .frame(height: 26)
             .background {
                 if isActive {
-                    Capsule().fill(Color(nsColor: .controlBackgroundColor))
+                    Capsule()
+                        .fill(Color(nsColor: .controlBackgroundColor))
                         .shadow(color: .black.opacity(0.08), radius: 2, y: 1)
+                        .matchedGeometryEffect(id: "pinboardActive", in: pinboardNamespace)
                 }
             }
         }
@@ -139,8 +142,7 @@ struct QuickPanelView: View {
         Button {
             NotificationCenter.default.post(name: .quickPanelDidRequestClose, object: nil)
         } label: {
-            Image(systemName: "xmark")
-                .font(.system(size: 12, weight: .semibold))
+            RemixIcon(name: "RemixClose", size: 13)
                 .foregroundStyle(.secondary)
                 .frame(width: 26, height: 26)
                 .background(Color.primary.opacity(0.05))
