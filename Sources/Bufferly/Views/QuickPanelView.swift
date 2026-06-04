@@ -1,9 +1,11 @@
+import AppKit
 import SwiftUI
 
 struct QuickPanelView: View {
     @StateObject private var viewModel: QuickPanelViewModel
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @FocusState private var searchFocused: Bool
+    @State private var keyMonitor: Any?
 
     init(viewModel: QuickPanelViewModel = QuickPanelViewModel()) {
         _viewModel = StateObject(wrappedValue: viewModel)
@@ -17,28 +19,20 @@ struct QuickPanelView: View {
         }
         .frame(maxWidth: .infinity)
         .frame(height: QuickPanelView.panelHeight)
-        .background(hiddenShortcuts)
         // 外圆角 = 卡片圆角(14) + 卡片内边距(20)，与卡片同心。
         // 面板用实材质作底，让上面的 Liquid Glass 控件清晰浮起。
         .panelBackground(cornerRadius: 34)
         .onAppear {
             viewModel.startMonitoring()
+            installKeyMonitor()
+            focusSearch()
         }
         .onChange(of: viewModel.query) {
             viewModel.handleQueryChange()
         }
-        .onMoveCommand { direction in
-            switch direction {
-            case .left, .up:
-                viewModel.selectPrevious()
-            case .right, .down:
-                viewModel.selectNext()
-            default:
-                break
-            }
-        }
-        .onExitCommand {
-            NotificationCenter.default.post(name: .quickPanelDidRequestClose, object: nil)
+        // 面板每次重新显示都把焦点交还搜索框（DESIGN §14：呼出即聚焦）。
+        .onReceive(NotificationCenter.default.publisher(for: .quickPanelDidShow)) { _ in
+            focusSearch()
         }
     }
 
@@ -215,25 +209,68 @@ struct QuickPanelView: View {
         }
     }
 
-    /// 隐藏的键盘快捷键宿主：⌥↵ 仅复制、⌘↵ 纯文本粘贴、⌘⌫ 删除。
-    private var hiddenShortcuts: some View {
-        ZStack {
-            Button("", action: copyOnlyAndClose)
-                .keyboardShortcut(.return, modifiers: .option)
+    // MARK: - 键盘
 
-            Button("", action: activateSelection)
-                .keyboardShortcut(.return, modifiers: .command)
-
-            Button("", action: viewModel.deleteSelected)
-                .keyboardShortcut(.delete, modifiers: .command)
-
-            Button("", action: viewModel.togglePinSelected)
-                .keyboardShortcut("p", modifiers: .command)
+    /// 让搜索框聚焦。无边框面板里若没有任何 first responder，方向键 / Return 都不会进响应链。
+    private func focusSearch() {
+        DispatchQueue.main.async {
+            searchFocused = true
         }
-        .opacity(0)
-        .frame(width: 0, height: 0)
-        .accessibilityHidden(true)
-        .disabled(viewModel.selectedClip == nil)
+    }
+
+    /// 安装本地 keyDown 监听，集中接管面板内的导航 / 动作键。
+    ///
+    /// 为什么不用 `onMoveCommand` / `keyboardShortcut`：无边框浮层面板里 SwiftUI 的
+    /// 方向键命令依赖被聚焦视图的响应链，焦点在搜索框上时方向键又会被字段当作移动光标，
+    /// 二者必有一失。本地监听在面板为 key 时直接拿到 keyDown，最可靠且不挑焦点。
+    private func installKeyMonitor() {
+        guard keyMonitor == nil else { return }
+        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            handleKeyDown(event)
+        }
+    }
+
+    private func handleKeyDown(_ event: NSEvent) -> NSEvent? {
+        // 只接管浮动无边框面板自己的按键，避免干扰设置窗口等其它窗口。
+        guard
+            let window = event.window,
+            window.styleMask.contains(.borderless),
+            window.level == .floating
+        else {
+            return event
+        }
+
+        let mods = event.modifierFlags.intersection([.command, .option, .control, .shift])
+
+        switch (event.keyCode, mods) {
+        case (123, []), (126, []): // ← / ↑
+            viewModel.selectPrevious()
+            return nil
+        case (124, []), (125, []): // → / ↓
+            viewModel.selectNext()
+            return nil
+        case (36, []), (76, []): // Return / 小键盘 Enter
+            activateSelection()
+            return nil
+        case (36, [.command]), (76, [.command]): // ⌘Return 粘贴
+            activateSelection()
+            return nil
+        case (36, [.option]), (76, [.option]): // ⌥Return 仅复制后关闭
+            copyOnlyAndClose()
+            return nil
+        case (51, [.command]): // ⌘⌫ 删除选中
+            viewModel.deleteSelected()
+            return nil
+        case (35, [.command]): // ⌘P 固定 / 取消固定
+            viewModel.togglePinSelected()
+            return nil
+        case (53, []): // Esc 关闭
+            NotificationCenter.default.post(name: .quickPanelDidRequestClose, object: nil)
+            return nil
+        default:
+            // 其余按键（打字、退格、其它组合）放行给搜索框 / 系统。
+            return event
+        }
     }
 
     private func activateSelection() {

@@ -78,6 +78,7 @@ final class QuickPanelWindowController: NSWindowController, NSWindowDelegate {
             window.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
             onVisibilityChange?(true)
+            NotificationCenter.default.post(name: .quickPanelDidShow, object: nil)
             return
         }
 
@@ -96,6 +97,7 @@ final class QuickPanelWindowController: NSWindowController, NSWindowDelegate {
         }
 
         onVisibilityChange?(true)
+        NotificationCenter.default.post(name: .quickPanelDidShow, object: nil)
     }
 
     func hidePanel() {
