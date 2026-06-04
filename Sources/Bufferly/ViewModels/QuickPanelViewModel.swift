@@ -25,10 +25,13 @@ final class QuickPanelViewModel: ObservableObject {
     @Published var query = ""
     @Published private(set) var clips: [ClipItem] = []
     @Published var selectedID: ClipItem.ID?
+    /// 仅在键盘 / 程序性选择时设置，驱动卡片墙把目标滚入视野；鼠标点击不设置，避免点一下整排乱跑。
+    @Published var scrollTarget: ClipItem.ID?
     @Published var board: Board = .clipboard {
         didSet {
             guard oldValue != board else { return }
             selectedID = filteredClips.first?.id
+            scrollTarget = selectedID
         }
     }
 
@@ -168,14 +171,17 @@ final class QuickPanelViewModel: ObservableObject {
 
         persist(newClip)
         selectedID = filteredClips.first?.id
+        scrollTarget = selectedID
     }
 
     func selectNext() {
         moveSelection(offset: 1)
+        scrollTarget = selectedID
     }
 
     func selectPrevious() {
         moveSelection(offset: -1)
+        scrollTarget = selectedID
     }
 
     func togglePinSelected() {
@@ -254,11 +260,13 @@ final class QuickPanelViewModel: ObservableObject {
 
     func handleQueryChange() {
         selectedID = filteredClips.first?.id
+        scrollTarget = selectedID
     }
 
     private func selectFirstIfNeeded() {
         if selectedID == nil || selectedClip == nil {
             selectedID = filteredClips.first?.id
+            scrollTarget = selectedID
         }
     }
 

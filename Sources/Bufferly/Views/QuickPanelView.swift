@@ -185,10 +185,10 @@ struct QuickPanelView: View {
                     .padding(.vertical, 18)
                 }
                 .scrollIndicators(.hidden)
-                .onChange(of: viewModel.selectedID) {
-                    guard let selectedID = viewModel.selectedID else { return }
+                .onChange(of: viewModel.scrollTarget) {
+                    guard let target = viewModel.scrollTarget else { return }
                     withAnimation(.easeOut(duration: 0.16)) {
-                        proxy.scrollTo(selectedID, anchor: .center)
+                        proxy.scrollTo(target, anchor: .center)
                     }
                 }
             }
