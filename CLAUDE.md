@@ -43,6 +43,7 @@
 
 - 开发：`swift run Bufferly`
 - 构建：`swift build`
+- 打包本地 app：`bash scripts/build-app.sh`，产物在 `.build/Bufferly.app`
 - 类型检查 / 测试：`swift build`
 
 ## 代码风格 / 架构
