@@ -9,6 +9,9 @@ struct ClipCardView: View {
     let onActivate: () -> Void
     let onTogglePin: () -> Void
 
+    /// 上次点击时间，用于自己判断双击，避免 SwiftUI 单/双击消歧带来的选中延迟。
+    @State private var lastTapTime = Date.distantPast
+
     static let width: CGFloat = 200
     static let height: CGFloat = 272
 
@@ -35,8 +38,15 @@ struct ClipCardView: View {
         }
         .shadow(color: .black.opacity(0.10), radius: 7, y: 3)
         .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .onTapGesture(count: 2, perform: onActivate)
-        .onTapGesture(perform: onSelect)
+        .onTapGesture {
+            let now = Date()
+            if now.timeIntervalSince(lastTapTime) < 0.3 {
+                onActivate()
+            } else {
+                onSelect()
+            }
+            lastTapTime = now
+        }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(clip.kind.rawValue)，\(clip.title)，\(timeText)复制自 \(clip.source)")
         .accessibilityAddTraits(isSelected ? .isSelected : [])
