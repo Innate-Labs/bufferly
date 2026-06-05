@@ -4,6 +4,9 @@ import SwiftUI
 final class QuickPanelWindowController: NSWindowController, NSWindowDelegate {
     var onVisibilityChange: ((Bool) -> Void)?
 
+    /// 退场动画进行中标记：若淡出途中又被呼出（showPanel 置 false），完成回调不再 orderOut，避免误关。
+    private var pendingHide = false
+
     var isPanelVisible: Bool {
         window?.isVisible == true
     }
@@ -69,6 +72,9 @@ final class QuickPanelWindowController: NSWindowController, NSWindowDelegate {
             return
         }
 
+        // 取消任何进行中的退场动画（淡出途中重新呼出）。
+        pendingHide = false
+
         positionAtBottom()
         let finalFrame = window.frame
 
@@ -101,8 +107,36 @@ final class QuickPanelWindowController: NSWindowController, NSWindowDelegate {
     }
 
     func hidePanel() {
-        window?.orderOut(nil)
+        guard let window, window.isVisible else {
+            onVisibilityChange?(false)
+            return
+        }
+
         onVisibilityChange?(false)
+
+        // Reduce Motion：直接隐藏，不做退场动画。
+        if NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
+            window.orderOut(nil)
+            return
+        }
+
+        // 入场的镜像：下沉 10px + 淡出。
+        pendingHide = true
+        let sunkFrame = window.frame.offsetBy(dx: 0, dy: -10)
+
+        NSAnimationContext.runAnimationGroup({ context in
+            context.duration = 0.13
+            context.timingFunction = CAMediaTimingFunction(name: .easeIn)
+            window.animator().alphaValue = 0
+            window.animator().setFrame(sunkFrame, display: true)
+        }, completionHandler: { [weak self] in
+            // 淡出途中若又被呼出，showPanel 已把 pendingHide 置 false，这里不再 orderOut。
+            guard let self, self.pendingHide else {
+                return
+            }
+            self.window?.orderOut(nil)
+            self.pendingHide = false
+        })
     }
 
     func windowDidResignKey(_ notification: Notification) {
