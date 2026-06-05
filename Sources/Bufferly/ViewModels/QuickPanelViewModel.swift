@@ -71,12 +71,32 @@ final class QuickPanelViewModel: ObservableObject {
             return boardClips
         }
 
-        return boardClips.filter { clip in
-            clip.title.localizedCaseInsensitiveContains(trimmedQuery)
-                || clip.preview.localizedCaseInsensitiveContains(trimmedQuery)
-                || clip.content.localizedCaseInsensitiveContains(trimmedQuery)
-                || clip.kind.rawValue.localizedCaseInsensitiveContains(trimmedQuery)
+        // 各字段模糊打分，加权取最高分；分数越高越相关。
+        let scored: [(clip: ClipItem, score: Int)] = boardClips.compactMap { clip in
+            let candidates = [
+                FuzzySearch.score(query: trimmedQuery, in: clip.title).map { $0 * 3 },
+                FuzzySearch.score(query: trimmedQuery, in: clip.kind.rawValue).map { $0 * 2 },
+                FuzzySearch.score(query: trimmedQuery, in: clip.source).map { $0 * 2 },
+                FuzzySearch.score(query: trimmedQuery, in: clip.preview),
+            ].compactMap { $0 }
+
+            var best = candidates.max()
+
+            // 短字段都没命中时，对正文做一次子串兜底（命中深层长文本），给低分。
+            if best == nil, clip.content.range(of: trimmedQuery, options: .caseInsensitive) != nil {
+                best = 1
+            }
+
+            guard let best else { return nil }
+            return (clip, best)
         }
+
+        // 分数降序；同分按更新时间降序（更近的靠前）。
+        return scored
+            .sorted { lhs, rhs in
+                lhs.score != rhs.score ? lhs.score > rhs.score : lhs.clip.updatedAt > rhs.clip.updatedAt
+            }
+            .map(\.clip)
     }
 
     var pinnedClips: [ClipItem] {

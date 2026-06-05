@@ -40,6 +40,8 @@ struct ClipCardView: View {
         }
         .frame(width: Self.width, height: Self.height)
         .background(Color(nsColor: .textBackgroundColor))
+        // 先把彩色头部 + 白色正文 + 白底压成一层再裁切，避免圆角处层间抗锯齿缝隙漏出白边。
+        .compositingGroup()
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 14, style: .continuous)
