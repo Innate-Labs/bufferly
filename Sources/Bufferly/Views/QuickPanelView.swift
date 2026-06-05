@@ -50,9 +50,10 @@ struct QuickPanelView: View {
         }
         // 内边距与卡片墙(20)对齐：外圆角(34) = 控件圆角 + 边距，让顶部控件与外圆同心，
         // 右上角分段控件因此避开 34pt 圆弧，不再「顶到圆角」。
+        // 不再用固定高度：顶栏只留 16 顶部内边距，下方与卡片的间距交给卡片墙的 20，
+        // 让「搜索行↔卡片」纵向间距与左右边距一致。
         .padding(.horizontal, 20)
-        .padding(.top, 6)
-        .frame(height: 56)
+        .padding(.top, 16)
     }
 
     /// 常驻玻璃搜索框（macOS 26 工具栏药丸样式）。
@@ -109,7 +110,7 @@ struct QuickPanelView: View {
         } else {
             ScrollViewReader { proxy in
                 ScrollView(.horizontal) {
-                    LazyHStack(spacing: 14) {
+                    LazyHStack(spacing: 16) {
                         ForEach(viewModel.filteredClips) { clip in
                             ClipCardView(
                                 clip: clip,

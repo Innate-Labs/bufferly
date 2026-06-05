@@ -22,7 +22,7 @@ struct ClipCardView: View {
     @State private var linkTitle: String?
     @State private var linkIcon: NSImage?
 
-    static let width: CGFloat = 200
+    static let width: CGFloat = 208
     static let height: CGFloat = 272
 
     private var isMonospaced: Bool {
@@ -71,25 +71,26 @@ struct ClipCardView: View {
         HStack(alignment: .top, spacing: 8) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(clip.kind.rawValue)
-                    .font(.headline)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
                     .foregroundStyle(.white)
 
                 Text(timeText)
-                    .font(.caption)
-                    .foregroundStyle(.white.opacity(0.85))
+                    .font(.caption2)
+                    .foregroundStyle(.white.opacity(0.8))
                     .monospacedDigit()
             }
 
             Spacer(minLength: 0)
 
             Image(systemName: clip.kind.symbolName)
-                .font(.system(size: 14, weight: .semibold))
+                .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(.white)
-                .frame(width: 26, height: 26)
+                .frame(width: 24, height: 24)
                 .background(.white.opacity(0.16), in: Circle())
         }
-        .padding(.horizontal, 12)
-        .frame(height: 62)
+        .padding(.horizontal, 14)
+        .frame(height: 52)
         .frame(maxWidth: .infinity)
         .background {
             LinearGradient(
@@ -103,7 +104,7 @@ struct ClipCardView: View {
                     startPoint: .top,
                     endPoint: .bottom
                 )
-                .frame(height: 26)
+                .frame(height: 22)
             }
         }
     }
@@ -116,7 +117,7 @@ struct ClipCardView: View {
 
             footer
         }
-        .padding(12)
+        .padding(14)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .onAppear {
             loadAttachmentIfNeeded()
@@ -193,8 +194,8 @@ struct ClipCardView: View {
         Text(clip.content)
             .font(isMonospaced ? .system(.body, design: .monospaced) : .body)
             .foregroundStyle(.primary)
-            .lineSpacing(2)
-            .lineLimit(8)
+            .lineSpacing(3)
+            .lineLimit(9)
             .truncationMode(.tail)
             .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -245,8 +246,8 @@ struct ClipCardView: View {
     private var richTextBody: some View {
         if let loadedRichText {
             Text(loadedRichText)
-                .lineSpacing(2)
-                .lineLimit(8)
+                .lineSpacing(3)
+                .lineLimit(9)
                 .truncationMode(.tail)
                 .frame(maxWidth: .infinity, alignment: .leading)
         } else {
@@ -328,12 +329,12 @@ struct ClipCardView: View {
             if let sourceIcon {
                 Image(nsImage: sourceIcon)
                     .resizable()
-                    .frame(width: 13, height: 13)
+                    .frame(width: 14, height: 14)
             }
 
             Text(clip.source)
                 .font(.caption2)
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(.secondary)
                 .lineLimit(1)
 
             Spacer(minLength: 4)
