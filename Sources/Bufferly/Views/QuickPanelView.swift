@@ -8,9 +8,6 @@ struct QuickPanelView: View {
     @State private var keyMonitor: Any?
     @State private var showPreview = false
     @State private var showOnboarding = false
-    /// 清空搜索时的「溶解」动画：被清掉的文字飞起 + 淡出 + 模糊。
-    @State private var dissolvingText: String?
-    @State private var dissolveAway = false
 
     init(viewModel: QuickPanelViewModel = QuickPanelViewModel()) {
         _viewModel = StateObject(wrappedValue: viewModel)
@@ -78,26 +75,14 @@ struct QuickPanelView: View {
             Image(systemName: "magnifyingglass")
                 .foregroundStyle(.secondary)
 
-            ZStack(alignment: .leading) {
-                TextField("搜索剪贴板", text: $viewModel.query)
-                    .textFieldStyle(.plain)
-                    .focused($searchFocused)
-                    .onSubmit(activateSelection)
-
-                // 溶解层：清空时，旧文字飞起 + 淡出 + 模糊，露出下面的 placeholder。
-                if let dissolvingText {
-                    Text(dissolvingText)
-                        .lineLimit(1)
-                        .blur(radius: dissolveAway ? 2 : 0)
-                        .opacity(dissolveAway ? 0 : 1)
-                        .offset(y: dissolveAway ? -12 : 0)
-                        .allowsHitTesting(false)
-                }
-            }
+            TextField("搜索剪贴板", text: $viewModel.query)
+                .textFieldStyle(.plain)
+                .focused($searchFocused)
+                .onSubmit(activateSelection)
 
             if !viewModel.query.isEmpty {
                 Button {
-                    clearSearch()
+                    viewModel.query = ""
                 } label: {
                     Image(systemName: "xmark.circle.fill")
                         .symbolRenderingMode(.hierarchical)
@@ -360,29 +345,6 @@ struct QuickPanelView: View {
         }
     }
 
-    /// 清空搜索 + 溶解动画：旧文字飞起淡出，露出 placeholder。Reduce Motion 下直接清空。
-    private func clearSearch() {
-        let old = viewModel.query
-        guard !old.isEmpty else { return }
-
-        guard !reduceMotion else {
-            viewModel.query = ""
-            return
-        }
-
-        dissolvingText = old
-        dissolveAway = false
-        viewModel.query = ""
-
-        withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.42)) {
-            dissolveAway = true
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.46) {
-            dissolvingText = nil
-            dissolveAway = false
-        }
-    }
-
     /// 安装本地 keyDown 监听，集中接管面板内的导航 / 动作键。
     ///
     /// 为什么不用 `onMoveCommand` / `keyboardShortcut`：无边框浮层面板里 SwiftUI 的
@@ -452,7 +414,7 @@ struct QuickPanelView: View {
                 return nil
             }
             if !viewModel.query.isEmpty {
-                clearSearch()
+                viewModel.query = ""
                 return nil
             }
             NotificationCenter.default.post(name: .quickPanelDidRequestClose, object: nil)
