@@ -85,6 +85,13 @@ struct SettingsView: View {
             Toggle("保留脱敏占位（关则直接丢弃）", isOn: $settings.storeSensitivePlaceholder)
                 .disabled(!settings.sensitiveFiltering)
 
+            VStack(alignment: .leading, spacing: 4) {
+                Toggle("链接预览", isOn: $settings.linkPreviewsEnabled)
+                Text("开启后会联网获取 URL 的标题与图标。默认关闭以保护隐私。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
             excludedAppsRow
 
             HStack {

@@ -42,6 +42,13 @@ final class AppSettings: ObservableObject {
         }
     }
 
+    /// 链接预览：开启后会**联网**获取 URL 的标题与图标。默认关，守住本地优先 / 隐私优先。
+    @Published var linkPreviewsEnabled: Bool {
+        didSet {
+            defaults.set(linkPreviewsEnabled, forKey: Keys.linkPreviewsEnabled)
+        }
+    }
+
     /// 开机自启（依赖 .app 包，由 LoginItem 实际登记）。
     @Published var launchAtLogin: Bool {
         didSet {
@@ -96,6 +103,8 @@ final class AppSettings: ObservableObject {
         maxHistoryCount = defaults.integer(forKey: Keys.maxHistoryCount)
         sensitiveFiltering = defaults.bool(forKey: Keys.sensitiveFiltering)
         storeSensitivePlaceholder = defaults.bool(forKey: Keys.storeSensitivePlaceholder)
+        // 默认 false（缺省即关）：联网获取链接预览是 opt-in。
+        linkPreviewsEnabled = defaults.bool(forKey: Keys.linkPreviewsEnabled)
         // 以系统实际登记状态为准，避免偏好与系统不同步。
         launchAtLogin = LoginItem.isEnabled
         hotKeyPreset = HotKeyPreset(rawValue: defaults.string(forKey: Keys.hotKeyPreset) ?? "")
@@ -109,6 +118,7 @@ final class AppSettings: ObservableObject {
         static let maxHistoryCount = "maxHistoryCount"
         static let sensitiveFiltering = "sensitiveFiltering"
         static let storeSensitivePlaceholder = "storeSensitivePlaceholder"
+        static let linkPreviewsEnabled = "linkPreviewsEnabled"
         static let launchAtLogin = "launchAtLogin"
         static let hotKeyPreset = "hotKeyPreset"
         static let excludedBundleIDs = "excludedBundleIDs"

@@ -18,6 +18,9 @@ struct ClipCardView: View {
     @State private var loadedRichText: AttributedString?
     /// 来源 App 图标，从 bundle id 解析后缓存。
     @State private var sourceIcon: NSImage?
+    /// 链接预览（仅 URL 且用户开启时联网抓取）。
+    @State private var linkTitle: String?
+    @State private var linkIcon: NSImage?
 
     static let width: CGFloat = 200
     static let height: CGFloat = 272
@@ -116,6 +119,39 @@ struct ClipCardView: View {
         .onAppear {
             loadAttachmentIfNeeded()
             loadSourceIcon()
+            loadLinkPreviewIfNeeded()
+        }
+    }
+
+    /// 抓取链接预览：仅当是 URL、用户开启了链接预览、且尚未加载时。命中缓存直接用，否则联网。
+    private func loadLinkPreviewIfNeeded() {
+        guard
+            clip.kind == .url,
+            AppSettings.shared.linkPreviewsEnabled,
+            linkTitle == nil, linkIcon == nil,
+            let url = URL(string: clip.content)
+        else {
+            return
+        }
+
+        if let cached = LinkPreview.cached(for: clip.content) {
+            applyLinkResult(cached)
+            return
+        }
+
+        Task {
+            guard let result = await LinkPreview.fetch(url) else { return }
+            LinkPreview.store(result, for: clip.content)
+            applyLinkResult(result)
+        }
+    }
+
+    private func applyLinkResult(_ result: LinkPreview.Result) {
+        if let title = result.title, !title.isEmpty {
+            linkTitle = title
+        }
+        if let data = result.iconPNG {
+            linkIcon = NSImage(data: data)
         }
     }
 
@@ -143,6 +179,8 @@ struct ClipCardView: View {
                 fileBody
             case .richText:
                 richTextBody
+            case .url:
+                urlBody
             default:
                 textBody
             }
@@ -207,6 +245,37 @@ struct ClipCardView: View {
                 .lineLimit(8)
                 .truncationMode(.tail)
                 .frame(maxWidth: .infinity, alignment: .leading)
+        } else {
+            textBody
+        }
+    }
+
+    /// URL：抓到链接预览（开启时）就显示 favicon + 标题 + 链接，否则退回纯文本。
+    @ViewBuilder
+    private var urlBody: some View {
+        if linkTitle != nil || linkIcon != nil {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(alignment: .top, spacing: 6) {
+                    if let linkIcon {
+                        Image(nsImage: linkIcon)
+                            .resizable()
+                            .frame(width: 16, height: 16)
+                            .clipShape(RoundedRectangle(cornerRadius: 3, style: .continuous))
+                    }
+
+                    Text(linkTitle ?? clip.content)
+                        .font(.callout.weight(.medium))
+                        .foregroundStyle(.primary)
+                        .lineLimit(3)
+                }
+
+                Text(clip.content)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                    .truncationMode(.middle)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
         } else {
             textBody
         }
