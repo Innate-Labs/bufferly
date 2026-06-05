@@ -82,7 +82,8 @@ struct QuickPanelView: View {
         .padding(.horizontal, 14)
         .frame(maxWidth: 320)
         .frame(height: 32)
-        .glassEffect(in: Capsule())
+        // interactive 玻璃：交互时有真实光感 / lensing 响应（macOS 26 Tahoe）。
+        .glassEffect(.regular.interactive(), in: Capsule())
     }
 
     /// 原生分段控件（macOS 26 自动套用 Liquid Glass）。
@@ -121,6 +122,8 @@ struct QuickPanelView: View {
                                 onTogglePin: { viewModel.togglePin(clipID: clip.id) }
                             )
                             .id(clip.id)
+                            // 选中卡浮起时盖在相邻卡之上，焦点更清晰。
+                            .zIndex(viewModel.selectedID == clip.id ? 1 : 0)
                             .contextMenu {
                                 clipActions(for: clip)
                             }
@@ -131,6 +134,8 @@ struct QuickPanelView: View {
                     .animation(reduceMotion ? nil : .easeOut(duration: 0.18), value: viewModel.filteredClips.map(\.id))
                 }
                 .scrollIndicators(.hidden)
+                // Tahoe 滚动边缘柔化：左右边缘的卡片淡入面板圆角，不硬裁切。
+                .scrollEdgeEffectStyle(.soft, for: .horizontal)
                 .onChange(of: viewModel.scrollTarget) {
                     guard let target = viewModel.scrollTarget else { return }
                     withAnimation(reduceMotion ? nil : .easeOut(duration: 0.1)) {

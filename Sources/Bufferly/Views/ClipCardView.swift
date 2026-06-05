@@ -13,6 +13,8 @@ struct ClipCardView: View {
     /// 上次点击时间，用于自己判断双击，避免 SwiftUI 单/双击消歧带来的选中延迟。
     @State private var lastTapTime = Date.distantPast
     @State private var isHovering = false
+    @State private var isPressed = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// 附件型懒加载：图片缩略图 / 富文本富排版，从 blob 读出后缓存。
     @State private var loadedImage: NSImage?
     @State private var loadedRichText: AttributedString?
@@ -33,6 +35,36 @@ struct ClipCardView: View {
         clip.relativeTime == "刚刚" ? "刚刚" : clip.relativeTime + "前"
     }
 
+    /// 缩放：按下轻微下压、选中浮起、悬停微抬；Reduce Motion 下一律不缩放。
+    private var cardScale: CGFloat {
+        if reduceMotion { return 1 }
+        if isPressed { return 0.97 }
+        if isSelected { return 1.03 }
+        if isHovering { return 1.02 }
+        return 1
+    }
+
+    private var shadowRadius: CGFloat {
+        if isSelected { return 12 }
+        if isHovering { return 9 }
+        return 6
+    }
+
+    private var shadowOpacity: Double {
+        if isSelected { return 0.16 }
+        if isHovering { return 0.12 }
+        return 0.07
+    }
+
+    /// 点击时的按下脉冲：快速下压再弹回，给"点了有反应"的反馈（不新增手势，避免与横向滚动冲突）。
+    private func triggerPressPulse() {
+        guard !reduceMotion else { return }
+        isPressed = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.09) {
+            isPressed = false
+        }
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             header
@@ -48,12 +80,16 @@ struct ClipCardView: View {
                 .strokeBorder(isSelected ? Color.accentColor : Color.primary.opacity(0.08),
                               lineWidth: isSelected ? 2 : 1)
         }
+        .scaleEffect(cardScale)
         .shadow(color: .black.opacity(0.05), radius: 1, y: 1)
-        .shadow(color: .black.opacity(0.07), radius: 6, y: 3)
+        .shadow(color: .black.opacity(shadowOpacity), radius: shadowRadius, y: isSelected ? 6 : 3)
         .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .onHover { isHovering = $0 }
-        .animation(.easeOut(duration: 0.12), value: isHovering)
+        .animation(reduceMotion ? nil : .snappy(duration: 0.22), value: isHovering)
+        .animation(reduceMotion ? nil : .snappy(duration: 0.22), value: isSelected)
+        .animation(reduceMotion ? nil : .snappy(duration: 0.13), value: isPressed)
         .onTapGesture {
+            triggerPressPulse()
             let now = Date()
             if now.timeIntervalSince(lastTapTime) < 0.3 {
                 onActivate()
