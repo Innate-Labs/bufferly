@@ -7,7 +7,8 @@ struct ClipItem: Identifiable, Hashable {
     let preview: String
     let source: String
     /// 来源 App 的 bundle identifier，用于在卡片上显示来源 App 图标；未知来源为 nil。
-    let sourceBundleID: String?
+    /// 可变：支持对旧数据回填。
+    var sourceBundleID: String?
     /// 文本型：原始文本；附件型（图片/文件/富文本）：去重用的稳定键（哈希 / 文件路径 / 纯文本兜底）。
     let content: String
     /// 附件型的 blob 文件名（位于 blobs 目录），图片字节 / RTF 数据等存于此；文本型为 nil。

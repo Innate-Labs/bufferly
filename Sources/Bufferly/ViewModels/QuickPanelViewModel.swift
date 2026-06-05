@@ -101,8 +101,50 @@ final class QuickPanelViewModel: ObservableObject {
 
     func startMonitoring() {
         loadPersistedClips()
+        backfillSourceBundleIDs()
         clipboardMonitor.start()
         selectFirstIfNeeded()
+    }
+
+    /// 一次性回填旧条目的来源 bundle id（功能上线前的历史没有它，导致无来源图标）。
+    /// 来源 → bundle id 映射来自：已带 bundle id 的同源条目 + 当前运行的 App 名。
+    private func backfillSourceBundleIDs() {
+        var map: [String: String] = [:]
+
+        for clip in clips where clip.sourceBundleID != nil {
+            if map[clip.source] == nil {
+                map[clip.source] = clip.sourceBundleID
+            }
+        }
+
+        for app in NSWorkspace.shared.runningApplications {
+            guard let name = app.localizedName, let bundleID = app.bundleIdentifier else {
+                continue
+            }
+            if map[name] == nil {
+                map[name] = bundleID
+            }
+        }
+
+        var updates: [(ClipItem.ID, String)] = []
+        for index in clips.indices where clips[index].sourceBundleID == nil {
+            if let bundleID = map[clips[index].source] {
+                clips[index].sourceBundleID = bundleID
+                updates.append((clips[index].id, bundleID))
+            }
+        }
+
+        guard !updates.isEmpty, let clipStore else {
+            return
+        }
+
+        for (clipID, bundleID) in updates {
+            do {
+                try clipStore.updateSourceBundleID(clipID: clipID, bundleID: bundleID)
+            } catch {
+                print("Failed to backfill sourceBundleID: \(error)")
+            }
+        }
     }
 
     func addCapture(_ capture: ClipboardCapture) {

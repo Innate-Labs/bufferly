@@ -46,6 +46,14 @@ final class ClipStore {
         }
     }
 
+    func updateSourceBundleID(clipID: ClipItem.ID, bundleID: String) throws {
+        _ = try dbQueue.write { db in
+            try ClipRecord
+                .filter(Column("id") == clipID.uuidString)
+                .updateAll(db, Column("sourceBundleID").set(to: bundleID))
+        }
+    }
+
     func delete(clipID: ClipItem.ID) throws {
         _ = try dbQueue.write { db in
             try ClipRecord

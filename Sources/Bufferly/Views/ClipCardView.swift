@@ -200,10 +200,12 @@ struct ClipCardView: View {
     @ViewBuilder
     private var imageBody: some View {
         if let loadedImage {
+            // 用 .fit 完整显示整图（不裁切），letterbox 区域给一层极淡底衬托。
             Image(nsImage: loadedImage)
                 .resizable()
-                .aspectRatio(contentMode: .fill)
+                .aspectRatio(contentMode: .fit)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color.primary.opacity(0.04))
                 .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         } else {
             Image(systemName: "photo")
