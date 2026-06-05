@@ -33,18 +33,40 @@ struct SettingsView: View {
 
     private var generalSection: some View {
         Section("通用") {
-            Toggle("开机自动启动", isOn: $settings.launchAtLogin)
-            Toggle("粘贴后隐藏面板", isOn: $settings.hideAfterPaste)
-            Toggle("选择后粘贴到上一应用", isOn: $settings.autoPasteAfterSelection)
+            settingRow("登录 macOS 后自动启动 Bufferly 并常驻后台。") {
+                Toggle("开机自动启动", isOn: $settings.launchAtLogin)
+            }
 
-            Stepper(value: $settings.maxHistoryCount, in: 50...2_000, step: 50) {
-                HStack {
-                    Text("最大历史数量")
-                    Spacer()
-                    Text("\(settings.maxHistoryCount)")
-                        .foregroundStyle(.secondary)
+            settingRow("选中条目后自动收起面板，回到你刚才的窗口。") {
+                Toggle("粘贴后隐藏面板", isOn: $settings.hideAfterPaste)
+            }
+
+            settingRow("选中后自动替你按 ⌘V 贴回前台 App（需在「权限」里授权）。关闭则只写回剪贴板，由你自己按 ⌘V。") {
+                Toggle("选择后粘贴到上一应用", isOn: $settings.autoPasteAfterSelection)
+            }
+
+            settingRow("历史超过这个数量时，自动删除最旧的未固定条目。") {
+                Stepper(value: $settings.maxHistoryCount, in: 50...2_000, step: 50) {
+                    HStack {
+                        Text("最大历史数量")
+                        Spacer()
+                        Text("\(settings.maxHistoryCount)")
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
+        }
+    }
+
+    /// 设置项 + 下方一行说明的统一排版。
+    @ViewBuilder
+    private func settingRow<Control: View>(_ caption: String, @ViewBuilder control: () -> Control) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            control()
+            Text(caption)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -52,9 +74,11 @@ struct SettingsView: View {
 
     private var shortcutsSection: some View {
         Section("快捷键") {
-            Picker("呼出 / 隐藏 Bufferly", selection: $settings.hotKeyPreset) {
-                ForEach(HotKeyPreset.allCases) { preset in
-                    Text(preset.displayName).tag(preset)
+            settingRow("在任意 App 里按这个组合，呼出或收起 Bufferly 面板。") {
+                Picker("呼出 / 隐藏 Bufferly", selection: $settings.hotKeyPreset) {
+                    ForEach(HotKeyPreset.allCases) { preset in
+                        Text(preset.displayName).tag(preset)
+                    }
                 }
             }
 
@@ -80,29 +104,36 @@ struct SettingsView: View {
 
     private var privacySection: some View {
         Section("隐私") {
-            Toggle("敏感内容过滤", isOn: $settings.sensitiveFiltering)
+            settingRow("自动识别 token、密码、API key、.env 值等敏感内容，避免明文存进历史。") {
+                Toggle("敏感内容过滤", isOn: $settings.sensitiveFiltering)
+            }
 
-            Toggle("保留脱敏占位（关则直接丢弃）", isOn: $settings.storeSensitivePlaceholder)
-                .disabled(!settings.sensitiveFiltering)
+            settingRow("命中敏感内容时存一张打码占位卡（不含明文）；关闭则直接丢弃、不入库。") {
+                Toggle("保留脱敏占位（关则直接丢弃）", isOn: $settings.storeSensitivePlaceholder)
+                    .disabled(!settings.sensitiveFiltering)
+            }
 
-            VStack(alignment: .leading, spacing: 4) {
+            settingRow("开启后会联网获取 URL 的标题与图标。默认关闭以保护隐私。") {
                 Toggle("链接预览", isOn: $settings.linkPreviewsEnabled)
-                Text("开启后会联网获取 URL 的标题与图标。默认关闭以保护隐私。")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
 
             excludedAppsRow
 
-            HStack {
-                Text("清空历史")
-                Spacer()
-                Button("保留固定", role: .destructive) {
-                    requestClearHistory(keepPinned: true)
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text("清空历史")
+                    Spacer()
+                    Button("保留固定", role: .destructive) {
+                        requestClearHistory(keepPinned: true)
+                    }
+                    Button("全部清空", role: .destructive) {
+                        requestClearHistory(keepPinned: false)
+                    }
                 }
-                Button("全部清空", role: .destructive) {
-                    requestClearHistory(keepPinned: false)
-                }
+                Text("「保留固定」只清未固定的条目；「全部清空」连固定的一起删。删除不可恢复。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
     }
@@ -126,10 +157,15 @@ struct SettingsView: View {
                 .fixedSize()
             }
 
+            Text("从这些 App 里复制的内容不会被 Bufferly 记录（比如密码管理器、银行 App）。")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
             if settings.excludedBundleIDs.isEmpty {
-                Text("剪贴板内容不会按来源 App 过滤")
+                Text("当前没有排除任何 App。")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.tertiary)
             } else {
                 ForEach(settings.excludedBundleIDs, id: \.self) { bundleID in
                     HStack {
@@ -154,12 +190,14 @@ struct SettingsView: View {
 
     private var permissionsSection: some View {
         Section("权限") {
-            LabeledContent("自动粘贴") {
-                Label(
-                    eventPostingPermission.isGranted ? "已允许" : "需要授权",
-                    systemImage: eventPostingPermission.isGranted ? "checkmark.circle.fill" : "exclamationmark.triangle.fill"
-                )
-                .foregroundStyle(eventPostingPermission.isGranted ? .green : .orange)
+            settingRow("允许 Bufferly 模拟 ⌘V，把内容自动粘回前台 App（即上面的「选择后粘贴到上一应用」）。未授权也能正常用——只是要你自己按 ⌘V。此权限仅用于粘贴，不做别的。") {
+                LabeledContent("自动粘贴") {
+                    Label(
+                        eventPostingPermission.isGranted ? "已允许" : "需要授权",
+                        systemImage: eventPostingPermission.isGranted ? "checkmark.circle.fill" : "exclamationmark.triangle.fill"
+                    )
+                    .foregroundStyle(eventPostingPermission.isGranted ? .green : .orange)
+                }
             }
 
             HStack {
@@ -192,11 +230,13 @@ struct SettingsView: View {
 
     private var dataSection: some View {
         Section("数据") {
-            LabeledContent("存储位置") {
-                Text(ClipStore.databasePath)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.trailing)
+            settingRow("你的剪贴板历史只保存在这个本地数据库文件里，不上传云端、不联网同步。") {
+                LabeledContent("存储位置") {
+                    Text(ClipStore.databasePath)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.trailing)
+                }
             }
         }
     }
