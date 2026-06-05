@@ -93,6 +93,13 @@ final class ClipStore {
             }
         }
 
+        // 来源 App 的 bundle id，用于卡片显示来源图标。
+        migrator.registerMigration("addSourceBundleID") { db in
+            try db.alter(table: "clips") { table in
+                table.add(column: "sourceBundleID", .text)
+            }
+        }
+
         try migrator.migrate(dbQueue)
     }
 
@@ -147,6 +154,7 @@ private struct ClipRecord: Codable, FetchableRecord, MutablePersistableRecord {
     var title: String
     var preview: String
     var source: String
+    var sourceBundleID: String?
     var attachmentFilename: String?
     var attachmentUTI: String?
     var createdAt: Date
@@ -161,6 +169,7 @@ private struct ClipRecord: Codable, FetchableRecord, MutablePersistableRecord {
         title = clip.title
         preview = clip.preview
         source = clip.source
+        sourceBundleID = clip.sourceBundleID
         attachmentFilename = clip.attachmentFilename
         attachmentUTI = clip.attachmentUTI
         createdAt = clip.createdAt
@@ -176,6 +185,7 @@ private struct ClipRecord: Codable, FetchableRecord, MutablePersistableRecord {
             title: title,
             preview: preview,
             source: source,
+            sourceBundleID: sourceBundleID,
             content: content,
             attachmentFilename: attachmentFilename,
             attachmentUTI: attachmentUTI,

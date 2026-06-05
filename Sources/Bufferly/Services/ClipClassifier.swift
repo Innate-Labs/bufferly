@@ -2,7 +2,7 @@ import CryptoKit
 import Foundation
 
 enum ClipClassifier {
-    static func makeClip(from rawText: String, source: String = "剪贴板") -> ClipItem? {
+    static func makeClip(from rawText: String, source: String = "剪贴板", sourceBundleID: String? = nil) -> ClipItem? {
         let content = rawText.trimmingCharacters(in: .whitespacesAndNewlines)
 
         guard !content.isEmpty else {
@@ -16,12 +16,13 @@ enum ClipClassifier {
             title: makeTitle(for: content, kind: kind),
             preview: makePreview(for: content),
             source: source,
+            sourceBundleID: sourceBundleID,
             content: content
         )
     }
 
     /// 图片：content 用图片字节的哈希作去重键，PNG 字节存到 blob（文件名由调用方写入）。
-    static func makeImageClip(png: Data, pixelSize: CGSize?, source: String = "剪贴板") -> ClipItem {
+    static func makeImageClip(png: Data, pixelSize: CGSize?, source: String = "剪贴板", sourceBundleID: String? = nil) -> ClipItem {
         let id = UUID()
         let hash = SHA256.hash(data: png).map { String(format: "%02x", $0) }.joined()
 
@@ -38,6 +39,7 @@ enum ClipClassifier {
             title: sizeText,
             preview: sizeText,
             source: source,
+            sourceBundleID: sourceBundleID,
             content: "image:\(hash)",
             attachmentFilename: "\(id.uuidString).png",
             attachmentUTI: "public.png"
@@ -45,7 +47,7 @@ enum ClipClassifier {
     }
 
     /// 文件：content 用文件路径（天然去重），不写 blob，回写时按 file-url 还原。
-    static func makeFileClip(urls: [URL], source: String = "剪贴板") -> ClipItem? {
+    static func makeFileClip(urls: [URL], source: String = "剪贴板", sourceBundleID: String? = nil) -> ClipItem? {
         guard !urls.isEmpty else {
             return nil
         }
@@ -59,13 +61,14 @@ enum ClipClassifier {
             title: title,
             preview: paths,
             source: source,
+            sourceBundleID: sourceBundleID,
             content: paths,
             attachmentUTI: "public.file-url"
         )
     }
 
     /// 富文本：content 用纯文本兜底（去重 + 纯文本粘贴），RTF 数据存到 blob。
-    static func makeRichTextClip(rtf: Data, plain: String, source: String = "剪贴板") -> ClipItem? {
+    static func makeRichTextClip(rtf: Data, plain: String, source: String = "剪贴板", sourceBundleID: String? = nil) -> ClipItem? {
         let trimmed = plain.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
             return nil
@@ -78,6 +81,7 @@ enum ClipClassifier {
             title: makeTitle(for: trimmed, kind: .richText),
             preview: makePreview(for: trimmed),
             source: source,
+            sourceBundleID: sourceBundleID,
             content: trimmed,
             attachmentFilename: "\(id.uuidString).rtf",
             attachmentUTI: "public.rtf"
@@ -85,12 +89,13 @@ enum ClipClassifier {
     }
 
     /// 命中敏感规则时的脱敏占位：不保存明文（content 为空），仅留一个 lock 卡片。
-    static func makeMaskedSecret(source: String = "剪贴板") -> ClipItem {
+    static func makeMaskedSecret(source: String = "剪贴板", sourceBundleID: String? = nil) -> ClipItem {
         ClipItem(
             kind: .secret,
             title: "敏感内容已隐藏",
             preview: "敏感内容已隐藏",
             source: source,
+            sourceBundleID: sourceBundleID,
             content: "",
             isSensitive: true
         )

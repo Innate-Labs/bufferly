@@ -16,6 +16,8 @@ struct ClipCardView: View {
     /// 附件型懒加载：图片缩略图 / 富文本富排版，从 blob 读出后缓存。
     @State private var loadedImage: NSImage?
     @State private var loadedRichText: AttributedString?
+    /// 来源 App 图标，从 bundle id 解析后缓存。
+    @State private var sourceIcon: NSImage?
 
     static let width: CGFloat = 200
     static let height: CGFloat = 272
@@ -111,7 +113,22 @@ struct ClipCardView: View {
         }
         .padding(12)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .onAppear(perform: loadAttachmentIfNeeded)
+        .onAppear {
+            loadAttachmentIfNeeded()
+            loadSourceIcon()
+        }
+    }
+
+    /// 从 bundle id 解析来源 App 图标。
+    private func loadSourceIcon() {
+        guard
+            sourceIcon == nil,
+            let bundleID = clip.sourceBundleID,
+            let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID)
+        else {
+            return
+        }
+        sourceIcon = NSWorkspace.shared.icon(forFile: url.path)
     }
 
     @ViewBuilder
@@ -234,7 +251,13 @@ struct ClipCardView: View {
     }
 
     private var footer: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 5) {
+            if let sourceIcon {
+                Image(nsImage: sourceIcon)
+                    .resizable()
+                    .frame(width: 13, height: 13)
+            }
+
             Text(clip.source)
                 .font(.caption2)
                 .foregroundStyle(.tertiary)

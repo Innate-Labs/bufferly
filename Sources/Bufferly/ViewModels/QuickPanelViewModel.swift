@@ -117,32 +117,36 @@ final class QuickPanelViewModel: ObservableObject {
         }
 
         let source = frontmost?.localizedName ?? "剪贴板"
+        let bundleID = frontmost?.bundleIdentifier
 
         switch capture {
         case .text(let text):
-            addText(text, source: source)
+            addText(text, source: source, bundleID: bundleID)
         case .richText(let rtf, let plain):
-            addRichText(rtf: rtf, plain: plain, source: source)
+            addRichText(rtf: rtf, plain: plain, source: source, bundleID: bundleID)
         case .image(let png, let pixelSize):
-            register(ClipClassifier.makeImageClip(png: png, pixelSize: pixelSize, source: source), blob: png)
+            register(
+                ClipClassifier.makeImageClip(png: png, pixelSize: pixelSize, source: source, sourceBundleID: bundleID),
+                blob: png
+            )
         case .files(let urls):
-            guard let clip = ClipClassifier.makeFileClip(urls: urls, source: source) else {
+            guard let clip = ClipClassifier.makeFileClip(urls: urls, source: source, sourceBundleID: bundleID) else {
                 return
             }
             register(clip)
         }
     }
 
-    private func addText(_ text: String, source: String) {
+    private func addText(_ text: String, source: String, bundleID: String?) {
         var newClip: ClipItem
         if AppSettings.shared.sensitiveFiltering, SensitiveContentFilter.isSensitive(text) {
             // 命中敏感内容：要么丢弃，要么留一个不含明文的脱敏占位。
             guard AppSettings.shared.storeSensitivePlaceholder else {
                 return
             }
-            newClip = ClipClassifier.makeMaskedSecret(source: source)
+            newClip = ClipClassifier.makeMaskedSecret(source: source, sourceBundleID: bundleID)
         } else {
-            guard let clip = ClipClassifier.makeClip(from: text, source: source) else {
+            guard let clip = ClipClassifier.makeClip(from: text, source: source, sourceBundleID: bundleID) else {
                 return
             }
             newClip = clip
@@ -151,17 +155,17 @@ final class QuickPanelViewModel: ObservableObject {
         register(newClip)
     }
 
-    private func addRichText(rtf: Data, plain: String, source: String) {
+    private func addRichText(rtf: Data, plain: String, source: String, bundleID: String?) {
         // 敏感判定按纯文本走；命中则按脱敏占位处理，丢弃 RTF。
         if AppSettings.shared.sensitiveFiltering, SensitiveContentFilter.isSensitive(plain) {
             guard AppSettings.shared.storeSensitivePlaceholder else {
                 return
             }
-            register(ClipClassifier.makeMaskedSecret(source: source))
+            register(ClipClassifier.makeMaskedSecret(source: source, sourceBundleID: bundleID))
             return
         }
 
-        guard let clip = ClipClassifier.makeRichTextClip(rtf: rtf, plain: plain, source: source) else {
+        guard let clip = ClipClassifier.makeRichTextClip(rtf: rtf, plain: plain, source: source, sourceBundleID: bundleID) else {
             return
         }
         register(clip, blob: rtf)
