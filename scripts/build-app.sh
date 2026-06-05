@@ -47,6 +47,8 @@ cat > "$CONTENTS_DIR/Info.plist" <<'PLIST'
     <string>26.0</string>
     <key>NSHighResolutionCapable</key>
     <true/>
+    <key>LSUIElement</key>
+    <true/>
 </dict>
 </plist>
 PLIST
