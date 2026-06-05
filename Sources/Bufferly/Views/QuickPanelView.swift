@@ -61,7 +61,7 @@ struct QuickPanelView: View {
 
             Spacer(minLength: 8)
 
-            pinboardPicker
+            PinboardTabs(selection: $viewModel.board)
         }
         // 四周统一 20：搜索上方到面板顶、左右边距、搜索行到卡片(由卡片墙 20 提供)全部一致。
         // 不再用固定高度，顶栏高度 = 20 顶部内边距 + 内容自然高度。
@@ -99,20 +99,6 @@ struct QuickPanelView: View {
         .frame(height: 32)
         // interactive 玻璃：交互时有真实光感 / lensing 响应（macOS 26 Tahoe）。
         .glassEffect(.regular.interactive(), in: Capsule())
-    }
-
-    /// 原生分段控件（macOS 26 自动套用 Liquid Glass）。
-    private var pinboardPicker: some View {
-        Picker("Pinboard", selection: $viewModel.board) {
-            ForEach(QuickPanelViewModel.Board.allCases) { board in
-                Text(board.rawValue).tag(board)
-            }
-        }
-        .pickerStyle(.segmented)
-        .labelsHidden()
-        // 用 large 控件尺寸配齐搜索药丸高度，让顶部两个控件读成同一排。
-        .controlSize(.large)
-        .fixedSize()
     }
 
     // MARK: - Card wall
