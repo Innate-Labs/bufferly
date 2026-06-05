@@ -130,12 +130,15 @@ final class QuickPanelWindowController: NSWindowController, NSWindowDelegate {
             window.animator().alphaValue = 0
             window.animator().setFrame(sunkFrame, display: true)
         }, completionHandler: { [weak self] in
-            // 淡出途中若又被呼出，showPanel 已把 pendingHide 置 false，这里不再 orderOut。
-            guard let self, self.pendingHide else {
-                return
+            // completion 在主线程回调；断言隔离以安全访问 MainActor 状态。
+            MainActor.assumeIsolated {
+                // 淡出途中若又被呼出，showPanel 已把 pendingHide 置 false，这里不再 orderOut。
+                guard let self, self.pendingHide else {
+                    return
+                }
+                self.window?.orderOut(nil)
+                self.pendingHide = false
             }
-            self.window?.orderOut(nil)
-            self.pendingHide = false
         })
     }
 

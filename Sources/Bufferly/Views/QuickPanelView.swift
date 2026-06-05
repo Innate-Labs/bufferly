@@ -6,6 +6,8 @@ struct QuickPanelView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @FocusState private var searchFocused: Bool
     @State private var keyMonitor: Any?
+    @State private var showPreview = false
+    @State private var showOnboarding = false
 
     init(viewModel: QuickPanelViewModel = QuickPanelViewModel()) {
         _viewModel = StateObject(wrappedValue: viewModel)
@@ -22,16 +24,29 @@ struct QuickPanelView: View {
         // 外圆角 = 卡片圆角(14) + 卡片内边距(20)，与卡片同心。
         // 面板用实材质作底，让上面的 Liquid Glass 控件清晰浮起。
         .panelBackground(cornerRadius: 34)
+        .overlay {
+            if showPreview, viewModel.selectedClip != nil {
+                previewOverlay
+            }
+        }
+        .overlay {
+            if showOnboarding {
+                onboardingOverlay
+            }
+        }
         .onAppear {
             viewModel.startMonitoring()
             installKeyMonitor()
             focusSearch()
+            showOnboarding = !AppSettings.shared.hasCompletedOnboarding
         }
         .onChange(of: viewModel.query) {
             viewModel.handleQueryChange()
         }
-        // 面板每次重新显示都把焦点交还搜索框（DESIGN §14：呼出即聚焦）。
+        // 面板每次重新显示：补抓一次剪贴板（让最新一条立刻在），并把焦点交还搜索框。
         .onReceive(NotificationCenter.default.publisher(for: .quickPanelDidShow)) { _ in
+            viewModel.captureLatestNow()
+            showPreview = false
             focusSearch()
         }
     }
@@ -213,6 +228,128 @@ struct QuickPanelView: View {
         }
     }
 
+    // MARK: - 覆盖层
+
+    /// 首次使用引导：一次性，看过即不再出现。
+    private var onboardingOverlay: some View {
+        ZStack {
+            Rectangle()
+                .fill(.black.opacity(0.28))
+                .ignoresSafeArea()
+                .onTapGesture { dismissOnboarding() }
+
+            VStack(spacing: 14) {
+                Image(systemName: "doc.on.clipboard.fill")
+                    .font(.system(size: 34))
+                    .foregroundStyle(.tint)
+
+                Text("欢迎使用 Bufferly")
+                    .font(.title3)
+                    .fontWeight(.semibold)
+
+                VStack(alignment: .leading, spacing: 8) {
+                    onboardingLine("⌥ Space", "在任意 App 呼出 / 隐藏面板")
+                    onboardingLine("← →", "选择 · Return 粘贴 · 空格预览")
+                    onboardingLine("⌘P / ⌘⌫", "固定 / 删除选中")
+                }
+                .font(.callout)
+
+                Text("「选中即自动粘回前台 App」需在菜单栏 → 设置里授权。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+
+                Button("开始使用") { dismissOnboarding() }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+            }
+            .padding(28)
+            .frame(maxWidth: 380)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .shadow(color: .black.opacity(0.2), radius: 20, y: 8)
+            .padding(24)
+        }
+    }
+
+    private func onboardingLine(_ key: String, _ desc: String) -> some View {
+        HStack(spacing: 10) {
+            Text(key)
+                .font(.callout.monospaced())
+                .fontWeight(.medium)
+                .frame(width: 78, alignment: .leading)
+            Text(desc)
+                .foregroundStyle(.secondary)
+            Spacer(minLength: 0)
+        }
+    }
+
+    /// 空格 Quick Look：把选中条目的完整内容 / 大图弹出来看，贴前确认。
+    @ViewBuilder
+    private var previewOverlay: some View {
+        if let clip = viewModel.selectedClip {
+            ZStack {
+                Rectangle()
+                    .fill(.black.opacity(0.32))
+                    .ignoresSafeArea()
+                    .onTapGesture { showPreview = false }
+
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(spacing: 8) {
+                        Image(systemName: clip.kind.symbolName)
+                            .foregroundStyle(clip.kind.accent)
+                        Text(clip.kind.rawValue)
+                            .fontWeight(.semibold)
+                        Text(clip.source)
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Text("空格 / Esc 关闭 · Return 粘贴")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+                    .font(.callout)
+
+                    Divider()
+
+                    previewBody(for: clip)
+                }
+                .padding(18)
+                .frame(maxWidth: 560, maxHeight: 300)
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .shadow(color: .black.opacity(0.25), radius: 22, y: 8)
+                .padding(20)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func previewBody(for clip: ClipItem) -> some View {
+        let mono = clip.kind == .code || clip.kind == .json || clip.kind == .command
+
+        if clip.isSensitive {
+            Text("敏感内容已隐藏")
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else if
+            clip.kind == .image,
+            let filename = clip.attachmentFilename,
+            let data = ClipBlobStore.read(filename: filename),
+            let image = NSImage(data: data)
+        {
+            Image(nsImage: image)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            ScrollView {
+                Text(clip.content)
+                    .font(mono ? .system(.callout, design: .monospaced) : .callout)
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .frame(maxHeight: .infinity)
+        }
+    }
+
     // MARK: - 键盘
 
     /// 让搜索框聚焦。无边框面板里若没有任何 first responder，方向键 / Return 都不会进响应链。
@@ -246,6 +383,17 @@ struct QuickPanelView: View {
 
         let mods = event.modifierFlags.intersection([.command, .option, .control, .shift])
 
+        // 引导覆盖层期间：Return / Esc / 空格关闭引导，其它键一律吞掉避免误操作。
+        if showOnboarding {
+            switch (event.keyCode, mods) {
+            case (36, []), (76, []), (53, []), (49, []):
+                dismissOnboarding()
+                return nil
+            default:
+                return nil
+            }
+        }
+
         switch (event.keyCode, mods) {
         case (123, []), (126, []): // ← / ↑
             viewModel.selectPrevious()
@@ -268,13 +416,32 @@ struct QuickPanelView: View {
         case (35, [.command]): // ⌘P 固定 / 取消固定
             viewModel.togglePinSelected()
             return nil
-        case (53, []): // Esc 关闭
+        case (49, []): // 空格：搜索为空时切换 Quick Look 预览，否则放行给搜索框打空格
+            if viewModel.query.isEmpty {
+                showPreview.toggle()
+                return nil
+            }
+            return event
+        case (53, []): // Esc：预览→关预览 → 有搜索词→清搜索 → 否则关面板
+            if showPreview {
+                showPreview = false
+                return nil
+            }
+            if !viewModel.query.isEmpty {
+                viewModel.query = ""
+                return nil
+            }
             NotificationCenter.default.post(name: .quickPanelDidRequestClose, object: nil)
             return nil
         default:
             // 其余按键（打字、退格、其它组合）放行给搜索框 / 系统。
             return event
         }
+    }
+
+    private func dismissOnboarding() {
+        showOnboarding = false
+        AppSettings.shared.hasCompletedOnboarding = true
     }
 
     private func activateSelection() {

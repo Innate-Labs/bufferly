@@ -49,6 +49,13 @@ final class AppSettings: ObservableObject {
         }
     }
 
+    /// 是否已看过首次使用引导。
+    @Published var hasCompletedOnboarding: Bool {
+        didSet {
+            defaults.set(hasCompletedOnboarding, forKey: Keys.hasCompletedOnboarding)
+        }
+    }
+
     /// 开机自启（依赖 .app 包，由 LoginItem 实际登记）。
     @Published var launchAtLogin: Bool {
         didSet {
@@ -105,6 +112,7 @@ final class AppSettings: ObservableObject {
         storeSensitivePlaceholder = defaults.bool(forKey: Keys.storeSensitivePlaceholder)
         // 默认 false（缺省即关）：联网获取链接预览是 opt-in。
         linkPreviewsEnabled = defaults.bool(forKey: Keys.linkPreviewsEnabled)
+        hasCompletedOnboarding = defaults.bool(forKey: Keys.hasCompletedOnboarding)
         // 以系统实际登记状态为准，避免偏好与系统不同步。
         launchAtLogin = LoginItem.isEnabled
         hotKeyPreset = HotKeyPreset(rawValue: defaults.string(forKey: Keys.hotKeyPreset) ?? "")
@@ -119,6 +127,7 @@ final class AppSettings: ObservableObject {
         static let sensitiveFiltering = "sensitiveFiltering"
         static let storeSensitivePlaceholder = "storeSensitivePlaceholder"
         static let linkPreviewsEnabled = "linkPreviewsEnabled"
+        static let hasCompletedOnboarding = "hasCompletedOnboarding"
         static let launchAtLogin = "launchAtLogin"
         static let hotKeyPreset = "hotKeyPreset"
         static let excludedBundleIDs = "excludedBundleIDs"

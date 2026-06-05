@@ -49,6 +49,11 @@ final class ClipboardMonitor {
         lastChangeCount = pasteboard.changeCount
     }
 
+    /// 立即检查一次剪贴板（呼出面板时调用），消除轮询间隔导致的「最新一条还没进来」。
+    func checkNow() {
+        poll()
+    }
+
     private func poll() {
         let changeCount = pasteboard.changeCount
 

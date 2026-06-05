@@ -126,6 +126,11 @@ final class QuickPanelViewModel: ObservableObject {
         selectFirstIfNeeded()
     }
 
+    /// 呼出面板时主动补抓一次剪贴板，保证刚复制的内容已在列表里（不必等下一次轮询）。
+    func captureLatestNow() {
+        clipboardMonitor.checkNow()
+    }
+
     /// 一次性回填旧条目的来源 bundle id（功能上线前的历史没有它，导致无来源图标）。
     /// 来源 → bundle id 映射来自：已带 bundle id 的同源条目 + 当前运行的 App 名。
     private func backfillSourceBundleIDs() {
