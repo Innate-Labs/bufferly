@@ -10,3 +10,6 @@ DerivedData/
 
 .vscode/
 .idea/
+
+# AI agent 本地工具产物
+.agents/
