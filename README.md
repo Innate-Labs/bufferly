@@ -16,6 +16,13 @@
 [![License](https://img.shields.io/github/license/Innate-Labs/bufferly?color=blue)](LICENSE)
 [![Stars](https://img.shields.io/github/stars/Innate-Labs/bufferly?style=social)](https://github.com/Innate-Labs/bufferly)
 
+<br/>
+<br/>
+
+[![⬇ 下载 DMG](https://img.shields.io/badge/⬇%20下载-Bufferly.dmg-7AA7FF?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/Innate-Labs/bufferly/releases/latest)
+
+<sub>最新版本见 <a href="https://github.com/Innate-Labs/bufferly/releases/latest">Releases</a></sub>
+
 </div>
 
 ---
@@ -56,7 +63,9 @@
 
 ### 直接用（DMG）
 
-下载 `Bufferly.dmg` → 拖到「应用程序」→ **首次右键「打开」**（未公证，需绕过一次 Gatekeeper）。
+1. 到 **[Releases 页面](https://github.com/Innate-Labs/bufferly/releases/latest)** 下载最新的 `Bufferly-x.y.z.dmg`
+2. 打开 DMG，把 Bufferly 拖到「应用程序」
+3. **首次启动右键「打开」**（未公证，需绕过一次 Gatekeeper）
 
 > 需要 **Apple Silicon + macOS 26 (Tahoe)**。
 
