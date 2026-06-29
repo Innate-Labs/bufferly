@@ -88,8 +88,6 @@ struct QuickPanelView: View {
 
             Spacer(minLength: 8)
 
-            returnModePill
-
             PinboardTabs(selection: $viewModel.board)
         }
         // 四周统一 20：搜索上方到面板顶、左右边距、搜索行到卡片(由卡片墙 20 提供)全部一致。
@@ -136,41 +134,6 @@ struct QuickPanelView: View {
         .frame(height: 32)
         // interactive 玻璃：交互时有真实光感 / lensing 响应（macOS 26 Tahoe）。
         .glassEffect(.regular.interactive(), in: Capsule())
-    }
-
-    private var returnModePill: some View {
-        let state = returnActionState
-
-        return HStack(spacing: 6) {
-            Text("Return")
-                .font(.caption2.monospaced().weight(.medium))
-                .padding(.horizontal, 5)
-                .frame(height: 18)
-                .background(Color.primary.opacity(0.07), in: RoundedRectangle(cornerRadius: 4, style: .continuous))
-
-            Image(systemName: state.symbolName)
-                .font(.caption2.weight(.semibold))
-                .foregroundStyle(state.tint)
-
-            Text(state.title)
-                .font(.caption.weight(.medium))
-                .foregroundStyle(.secondary)
-
-            if let note = state.note {
-                Text(note)
-                    .font(.caption2.weight(.medium))
-                    .foregroundStyle(state.tint)
-            }
-        }
-        .padding(.horizontal, 9)
-        .frame(height: 28)
-        .background(Color.primary.opacity(0.045), in: Capsule())
-        .overlay {
-            Capsule()
-                .strokeBorder(state.tint.opacity(0.18), lineWidth: 1)
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("Return 当前行为：\(state.accessibilityText)")
     }
 
     private var returnActionState: ReturnActionState {
