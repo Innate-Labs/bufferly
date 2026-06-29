@@ -73,6 +73,16 @@ final class QuickPanelWindowController: NSWindowController, NSWindowDelegate {
             return
         }
 
+        if window.isVisible && !isHiding {
+            positionAtBottom()
+            window.alphaValue = 1
+            window.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            onVisibilityChange?(true)
+            NotificationCenter.default.post(name: .quickPanelDidShow, object: nil)
+            return
+        }
+
         let animationID = UUID()
         visibilityAnimationID = animationID
         isHiding = false
@@ -120,6 +130,9 @@ final class QuickPanelWindowController: NSWindowController, NSWindowDelegate {
         guard let window, window.isVisible else {
             isHiding = false
             onVisibilityChange?(false)
+            return
+        }
+        guard !isHiding else {
             return
         }
 

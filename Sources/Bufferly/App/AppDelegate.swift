@@ -46,7 +46,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         self.statusBarController = statusBarController
 
-        controller.showPanel()
+        if !AppSettings.shared.hasCompletedOnboarding {
+            controller.showPanel()
+        }
         updateStatusBarPanelState()
     }
 
