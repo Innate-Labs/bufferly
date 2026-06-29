@@ -4,6 +4,7 @@ import SwiftUI
 struct SettingsView: View {
     @ObservedObject var settings: AppSettings
     @ObservedObject var eventPostingPermission: EventPostingPermission
+    @State private var permissionRequestMessage: String?
 
     init(
         settings: AppSettings,
@@ -112,9 +113,15 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
+            if let permissionRequestMessage, !eventPostingPermission.isGranted {
+                Label(permissionRequestMessage, systemImage: "arrow.up.forward.app")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
             HStack {
                 Button {
-                    eventPostingPermission.requestAccess()
+                    requestPasteBackPermission()
                 } label: {
                     Label("请求授权", systemImage: "hand.raised")
                 }
@@ -337,6 +344,19 @@ struct SettingsView: View {
             object: nil,
             userInfo: ["keepPinned": keepPinned]
         )
+    }
+
+    private func requestPasteBackPermission() {
+        let granted = eventPostingPermission.requestAccess()
+        eventPostingPermission.refresh()
+
+        if granted || eventPostingPermission.isGranted {
+            permissionRequestMessage = nil
+            return
+        }
+
+        permissionRequestMessage = "如果没有弹窗，请在打开的系统设置中允许 Bufferly，授权后点刷新。"
+        eventPostingPermission.openPrivacySettings()
     }
 
     private func revealDatabaseInFinder() {
