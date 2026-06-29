@@ -15,8 +15,8 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
-            generalSection
             pasteSection
+            generalSection
             privacySection
             dataSection
         }
@@ -84,16 +84,20 @@ struct SettingsView: View {
 
     private var pasteSection: some View {
         Section("粘贴") {
-            settingRow("选中后自动替你按 ⌘V 贴回前台 App。关闭则只写回剪贴板，由你自己按 ⌘V。") {
-                Toggle("选择后粘贴到上一应用", isOn: $settings.autoPasteAfterSelection)
+            settingRow("“只复制”会把内容放进剪贴板；“贴回上一应用”会额外回到刚才的 App 并模拟一次 ⌘V。") {
+                Picker("按 Return 后", selection: $settings.autoPasteAfterSelection) {
+                    Text("只复制").tag(false)
+                    Text("贴回上一应用").tag(true)
+                }
+                .pickerStyle(.segmented)
             }
 
-            settingRow("选中条目后自动收起面板，回到你刚才的窗口。") {
-                Toggle("粘贴后隐藏面板", isOn: $settings.hideAfterPaste)
+            settingRow("复制或粘贴完成后自动收起面板，回到你刚才的窗口。") {
+                Toggle("完成后关闭面板", isOn: $settings.hideAfterPaste)
             }
 
-            settingRow("此权限只用于模拟 ⌘V；未授权也能正常复制，只是不会自动粘回上一应用。") {
-                LabeledContent("自动粘贴权限") {
+            settingRow("此权限只用于“贴回上一应用”。未授权时仍能正常只复制。") {
+                LabeledContent("贴回上一应用权限") {
                     Label(
                         eventPostingPermission.isGranted ? "已允许" : "需要授权",
                         systemImage: eventPostingPermission.isGranted ? "checkmark.circle.fill" : "exclamationmark.triangle.fill"
@@ -103,7 +107,7 @@ struct SettingsView: View {
             }
 
             if settings.autoPasteAfterSelection && !eventPostingPermission.isGranted {
-                Label("未授权时仍会复制到剪贴板；若关闭“粘贴后隐藏面板”，会在面板内提示原因。", systemImage: "info.circle")
+                Label("当前会先复制到剪贴板；授权后才会自动贴回上一应用。", systemImage: "info.circle")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

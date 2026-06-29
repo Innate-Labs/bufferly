@@ -88,7 +88,7 @@ final class AppSettings: ObservableObject {
         self.defaults = defaults
 
         if defaults.object(forKey: Keys.autoPasteAfterSelection) == nil {
-            defaults.set(true, forKey: Keys.autoPasteAfterSelection)
+            defaults.set(false, forKey: Keys.autoPasteAfterSelection)
         }
 
         if defaults.object(forKey: Keys.hideAfterPaste) == nil {
