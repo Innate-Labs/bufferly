@@ -136,34 +136,12 @@ struct QuickPanelView: View {
         .glassEffect(.regular.interactive(), in: Capsule())
     }
 
-    private var returnActionState: ReturnActionState {
-        if !appSettings.autoPasteAfterSelection {
-            return ReturnActionState(
-                title: "只复制",
-                note: nil,
-                symbolName: "doc.on.clipboard",
-                tint: .secondary,
-                accessibilityText: "只复制到剪贴板"
-            )
+    private var returnActionTitle: String {
+        guard appSettings.autoPasteAfterSelection, eventPostingPermission.isGranted else {
+            return "只复制"
         }
 
-        if eventPostingPermission.isGranted {
-            return ReturnActionState(
-                title: "贴回上一应用",
-                note: nil,
-                symbolName: "arrowshape.turn.up.left.fill",
-                tint: .green,
-                accessibilityText: "复制并贴回上一应用"
-            )
-        }
-
-        return ReturnActionState(
-            title: "只复制",
-            note: "需授权",
-            symbolName: "exclamationmark.triangle.fill",
-            tint: .orange,
-            accessibilityText: "贴回上一应用未授权，目前只复制到剪贴板"
-        )
+        return "贴回上一应用"
     }
 
     // MARK: - Card wall
@@ -236,7 +214,7 @@ struct QuickPanelView: View {
     /// 卡片右键 / ⌘K 共用的动作列表。
     @ViewBuilder
     private func clipActions(for clip: ClipItem) -> some View {
-        Button(returnActionState.title) {
+        Button(returnActionTitle) {
             viewModel.select(clipID: clip.id, revealFocus: false)
             activateSelection()
         }
@@ -409,7 +387,7 @@ struct QuickPanelView: View {
                         Text(clip.source)
                             .foregroundStyle(.secondary)
                         Spacer()
-                        Text("空格 / Esc 关闭 · Return \(returnActionState.title)")
+                        Text("空格 / Esc 关闭 · Return \(returnActionTitle)")
                             .font(.caption)
                             .foregroundStyle(.tertiary)
                     }
@@ -584,14 +562,6 @@ private struct StatusBanner: Equatable {
     let id = UUID()
     let message: String
     let kind: QuickPanelStatusKind
-}
-
-private struct ReturnActionState {
-    let title: String
-    let note: String?
-    let symbolName: String
-    let tint: Color
-    let accessibilityText: String
 }
 
 private extension QuickPanelStatusKind {

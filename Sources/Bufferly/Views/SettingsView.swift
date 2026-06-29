@@ -214,13 +214,58 @@ struct SettingsView: View {
     }
 
     private var privacySummaryRow: some View {
-        HStack(spacing: 14) {
-            Label("历史仅本机保存", systemImage: "lock.shield")
-            Spacer(minLength: 8)
-            Label("链接预览默认不联网", systemImage: "wifi.slash")
+        HStack(spacing: 12) {
+            privacyStatusItem(
+                title: "本地历史",
+                value: "仅本机",
+                systemImage: "lock.shield.fill",
+                tint: .green
+            )
+
+            privacyStatusItem(
+                title: "敏感过滤",
+                value: settings.sensitiveFiltering ? "已开启" : "已关闭",
+                systemImage: settings.sensitiveFiltering ? "checkmark.shield.fill" : "shield.slash",
+                tint: settings.sensitiveFiltering ? .green : .orange
+            )
+
+            privacyStatusItem(
+                title: "链接预览",
+                value: settings.linkPreviewsEnabled ? "会联网" : "离线",
+                systemImage: settings.linkPreviewsEnabled ? "globe" : "wifi.slash",
+                tint: settings.linkPreviewsEnabled ? .orange : .secondary
+            )
         }
-        .font(.caption)
-        .foregroundStyle(.secondary)
+    }
+
+    private func privacyStatusItem(
+        title: String,
+        value: String,
+        systemImage: String,
+        tint: Color
+    ) -> some View {
+        HStack(spacing: 7) {
+            Image(systemName: systemImage)
+                .font(.caption.weight(.semibold))
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(tint)
+                .frame(width: 18)
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+
+                Text(value)
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var excludedAppsRow: some View {

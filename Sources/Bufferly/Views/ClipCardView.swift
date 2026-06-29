@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-/// Paste 式剪贴板卡片：彩色头部（类型 + 时间 + 类型图标）+ 白色正文（文本/图片/文件/富文本预览 + 来源 + pin）。
+/// Paste 式剪贴板卡片：安静头部（类型 + 时间 + 类型图标）+ 正文预览 + 来源 + pin。
 /// 卡片不绘制选中态；最新信息由卡片顺序表达。
 struct ClipCardView: View {
     let clip: ClipItem
@@ -26,6 +26,7 @@ struct ClipCardView: View {
 
     static let width: CGFloat = 208
     static let height: CGFloat = 272
+    private static let cornerRadius: CGFloat = 14
 
     init(
         clip: ClipItem,
@@ -80,7 +81,7 @@ struct ClipCardView: View {
 
     private var liftOffset: CGFloat {
         if reduceMotion { return 0 }
-        if isHovering { return -3 }
+        if isHovering { return -2 }
         return 0
     }
 
@@ -100,11 +101,11 @@ struct ClipCardView: View {
         }
         .frame(width: Self.width, height: Self.height)
         .background(Color(nsColor: .textBackgroundColor))
-        // 先把彩色头部 + 白色正文 + 白底压成一层再裁切，避免圆角处层间抗锯齿缝隙漏出白边。
+        // 先把头部 + 正文 + 白底压成一层再裁切，避免圆角处层间抗锯齿缝隙漏出白边。
         .compositingGroup()
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: Self.cornerRadius, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
+            RoundedRectangle(cornerRadius: Self.cornerRadius, style: .continuous)
                 .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
         }
         .scaleEffect(pressScale)
@@ -128,44 +129,39 @@ struct ClipCardView: View {
     }
 
     private var header: some View {
-        HStack(alignment: .top, spacing: 8) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(clip.kind.rawValue)
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.white)
+        HStack(spacing: 8) {
+            Image(systemName: clip.kind.symbolName)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(clip.kind.accent)
+                .frame(width: 22, height: 22)
+                .background(clip.kind.accent.opacity(0.11), in: Circle())
 
-                Text(timeText)
-                    .font(.caption2)
-                    .foregroundStyle(.white.opacity(0.8))
-                    .monospacedDigit()
-            }
+            Text(clip.kind.rawValue)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.primary)
+                .lineLimit(1)
 
             Spacer(minLength: 0)
 
-            Image(systemName: clip.kind.symbolName)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(.white)
-                .frame(width: 24, height: 24)
-                .background(.white.opacity(0.16), in: Circle())
+            Text(timeText)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .monospacedDigit()
+                .lineLimit(1)
         }
         .padding(.horizontal, 14)
-        .frame(height: 52)
+        .padding(.top, 3)
+        .frame(height: 44)
         .frame(maxWidth: .infinity)
-        .background {
-            LinearGradient(
-                colors: [clip.kind.accent, clip.kind.accent.opacity(0.82)],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .overlay(alignment: .top) {
-                LinearGradient(
-                    colors: [.white.opacity(0.22), .clear],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .frame(height: 22)
-            }
+        .overlay(alignment: .top) {
+            Rectangle()
+                .fill(clip.kind.accent.opacity(0.72))
+                .frame(height: 3)
+        }
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(Color.primary.opacity(0.06))
+                .frame(height: 1)
         }
     }
 
@@ -177,7 +173,9 @@ struct ClipCardView: View {
 
             footer
         }
-        .padding(14)
+        .padding(.horizontal, 14)
+        .padding(.top, 12)
+        .padding(.bottom, 14)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .onAppear {
             loadAttachmentIfNeeded()

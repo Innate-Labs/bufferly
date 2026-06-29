@@ -53,8 +53,8 @@ enum ClipKind: String, CaseIterable, Identifiable {
         }
     }
 
-    /// 卡片彩色头部用的鲜明色，按类型区分（Paste 式卡片墙）。
-    /// 都足够深，保证白色头部文字可读。
+    /// 卡片顶部细色条与类型图标使用的颜色，按内容类型区分。
+    /// 颜色只帮助扫读类型，不承担选中态或主要层级。
     var accent: Color {
         switch self {
         case .text:
