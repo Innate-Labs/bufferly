@@ -3,6 +3,8 @@ import SwiftUI
 
 struct QuickPanelView: View {
     @StateObject private var viewModel: QuickPanelViewModel
+    @ObservedObject private var appSettings: AppSettings
+    @ObservedObject private var eventPostingPermission: EventPostingPermission
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @FocusState private var searchFocused: Bool
     @State private var keyMonitor: Any?
@@ -11,8 +13,14 @@ struct QuickPanelView: View {
     @State private var statusBanner: StatusBanner?
     @State private var statusDismissTask: Task<Void, Never>?
 
-    init(viewModel: QuickPanelViewModel = QuickPanelViewModel()) {
+    init(
+        viewModel: QuickPanelViewModel = QuickPanelViewModel(),
+        appSettings: AppSettings = .shared,
+        eventPostingPermission: EventPostingPermission = .shared
+    ) {
         _viewModel = StateObject(wrappedValue: viewModel)
+        self.appSettings = appSettings
+        self.eventPostingPermission = eventPostingPermission
     }
 
     var body: some View {
@@ -59,6 +67,7 @@ struct QuickPanelView: View {
         }
         // 面板每次重新显示：补抓一次剪贴板（让最新一条立刻在），并把焦点交还搜索框。
         .onReceive(NotificationCenter.default.publisher(for: .quickPanelDidShow)) { _ in
+            eventPostingPermission.refresh()
             viewModel.prepareForPanelShow()
             viewModel.captureLatestNow()
             showPreview = false
@@ -78,6 +87,8 @@ struct QuickPanelView: View {
             searchField
 
             Spacer(minLength: 8)
+
+            returnModePill
 
             PinboardTabs(selection: $viewModel.board)
         }
@@ -125,6 +136,71 @@ struct QuickPanelView: View {
         .frame(height: 32)
         // interactive 玻璃：交互时有真实光感 / lensing 响应（macOS 26 Tahoe）。
         .glassEffect(.regular.interactive(), in: Capsule())
+    }
+
+    private var returnModePill: some View {
+        let state = returnActionState
+
+        return HStack(spacing: 6) {
+            Text("Return")
+                .font(.caption2.monospaced().weight(.medium))
+                .padding(.horizontal, 5)
+                .frame(height: 18)
+                .background(Color.primary.opacity(0.07), in: RoundedRectangle(cornerRadius: 4, style: .continuous))
+
+            Image(systemName: state.symbolName)
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(state.tint)
+
+            Text(state.title)
+                .font(.caption.weight(.medium))
+                .foregroundStyle(.secondary)
+
+            if let note = state.note {
+                Text(note)
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(state.tint)
+            }
+        }
+        .padding(.horizontal, 9)
+        .frame(height: 28)
+        .background(Color.primary.opacity(0.045), in: Capsule())
+        .overlay {
+            Capsule()
+                .strokeBorder(state.tint.opacity(0.18), lineWidth: 1)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Return 当前行为：\(state.accessibilityText)")
+    }
+
+    private var returnActionState: ReturnActionState {
+        if !appSettings.autoPasteAfterSelection {
+            return ReturnActionState(
+                title: "只复制",
+                note: nil,
+                symbolName: "doc.on.clipboard",
+                tint: .secondary,
+                accessibilityText: "只复制到剪贴板"
+            )
+        }
+
+        if eventPostingPermission.isGranted {
+            return ReturnActionState(
+                title: "贴回上一应用",
+                note: nil,
+                symbolName: "arrowshape.turn.up.left.fill",
+                tint: .green,
+                accessibilityText: "复制并贴回上一应用"
+            )
+        }
+
+        return ReturnActionState(
+            title: "只复制",
+            note: "需授权",
+            symbolName: "exclamationmark.triangle.fill",
+            tint: .orange,
+            accessibilityText: "贴回上一应用未授权，目前只复制到剪贴板"
+        )
     }
 
     // MARK: - Card wall
@@ -197,7 +273,7 @@ struct QuickPanelView: View {
     /// 卡片右键 / ⌘K 共用的动作列表。
     @ViewBuilder
     private func clipActions(for clip: ClipItem) -> some View {
-        Button("粘贴") {
+        Button(returnActionState.title) {
             viewModel.select(clipID: clip.id, revealFocus: false)
             activateSelection()
         }
@@ -318,12 +394,12 @@ struct QuickPanelView: View {
 
                 VStack(alignment: .leading, spacing: 8) {
                     onboardingLine("⌥ Space", "在任意 App 呼出 / 隐藏面板")
-                    onboardingLine("← →", "选择 · Return 粘贴 · 空格预览")
+                    onboardingLine("← →", "浏览 · Return 按当前模式执行 · 空格预览")
                     onboardingLine("⌘P / ⌘⌫", "固定 / 删除选中")
                 }
                 .font(.callout)
 
-                Text("「选中即自动粘回前台 App」需在菜单栏 → 设置里授权。")
+                Text("若选择「贴回上一应用」，需在设置里授权辅助功能。")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -370,7 +446,7 @@ struct QuickPanelView: View {
                         Text(clip.source)
                             .foregroundStyle(.secondary)
                         Spacer()
-                        Text("空格 / Esc 关闭 · Return 粘贴")
+                        Text("空格 / Esc 关闭 · Return \(returnActionState.title)")
                             .font(.caption)
                             .foregroundStyle(.tertiary)
                     }
@@ -545,6 +621,14 @@ private struct StatusBanner: Equatable {
     let id = UUID()
     let message: String
     let kind: QuickPanelStatusKind
+}
+
+private struct ReturnActionState {
+    let title: String
+    let note: String?
+    let symbolName: String
+    let tint: Color
+    let accessibilityText: String
 }
 
 private extension QuickPanelStatusKind {

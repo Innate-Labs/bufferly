@@ -97,15 +97,7 @@ struct SettingsView: View {
                 Toggle("完成后关闭面板", isOn: $settings.hideAfterPaste)
             }
 
-            settingRow("此权限只用于“贴回上一应用”。未授权时仍能正常只复制。") {
-                LabeledContent("贴回上一应用权限") {
-                    Label(
-                        eventPostingPermission.isGranted ? "已允许" : "需要授权",
-                        systemImage: eventPostingPermission.isGranted ? "checkmark.circle.fill" : "exclamationmark.triangle.fill"
-                    )
-                    .foregroundStyle(eventPostingPermission.isGranted ? .green : .orange)
-                }
-            }
+            pasteBackStatusRow
 
             if settings.autoPasteAfterSelection && !eventPostingPermission.isGranted {
                 Label("当前会先复制到剪贴板；授权后才会自动贴回上一应用。", systemImage: "info.circle")
@@ -128,7 +120,7 @@ struct SettingsView: View {
                 .disabled(eventPostingPermission.isGranted)
 
                 Button {
-                    eventPostingPermission.refresh()
+                    refreshPasteBackPermission()
                 } label: {
                     Label("刷新", systemImage: "arrow.clockwise")
                 }
@@ -143,6 +135,59 @@ struct SettingsView: View {
                 .disabled(eventPostingPermission.isGranted)
             }
         }
+    }
+
+    private var pasteBackStatusRow: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            LabeledContent("贴回上一应用权限") {
+                Label(
+                    pasteBackPermissionTitle,
+                    systemImage: pasteBackPermissionSymbol
+                )
+                .foregroundStyle(pasteBackPermissionTint)
+            }
+
+            Text(pasteBackPermissionCaption)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private var pasteBackPermissionTitle: String {
+        if !settings.autoPasteAfterSelection {
+            return "未启用"
+        }
+
+        return eventPostingPermission.isGranted ? "已允许" : "需要授权"
+    }
+
+    private var pasteBackPermissionCaption: String {
+        if !settings.autoPasteAfterSelection {
+            return "当前 Return 只复制到剪贴板，不需要辅助功能权限。"
+        }
+
+        if eventPostingPermission.isGranted {
+            return "Return 会复制内容，并尝试回到刚才的 App 自动按 ⌘V。"
+        }
+
+        return "未授权时 Return 会退回为只复制；授权后才会贴回上一应用。"
+    }
+
+    private var pasteBackPermissionSymbol: String {
+        if !settings.autoPasteAfterSelection {
+            return "minus.circle"
+        }
+
+        return eventPostingPermission.isGranted ? "checkmark.circle.fill" : "exclamationmark.triangle.fill"
+    }
+
+    private var pasteBackPermissionTint: Color {
+        if !settings.autoPasteAfterSelection {
+            return .secondary
+        }
+
+        return eventPostingPermission.isGranted ? .green : .orange
     }
 
     // MARK: - 隐私
@@ -357,6 +402,13 @@ struct SettingsView: View {
 
         permissionRequestMessage = "如果没有弹窗，请在打开的系统设置中允许 Bufferly，授权后点刷新。"
         eventPostingPermission.openPrivacySettings()
+    }
+
+    private func refreshPasteBackPermission() {
+        eventPostingPermission.refresh()
+        if eventPostingPermission.isGranted {
+            permissionRequestMessage = nil
+        }
     }
 
     private func revealDatabaseInFinder() {
