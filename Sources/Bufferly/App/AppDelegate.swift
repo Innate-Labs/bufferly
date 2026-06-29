@@ -8,6 +8,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusBarController: StatusBarController?
     private var pasteTargetApplication: NSRunningApplication?
 
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        // 单实例守卫：若已存在相同 bundle id 的另一个进程，直接退出自己。
+        // 防止「登录项里登记了多份 .app 路径」时开机出现多个 UI 实例。
+        let myPID = ProcessInfo.processInfo.processIdentifier
+        let bundleID = Bundle.main.bundleIdentifier ?? ""
+        let hasOtherInstance = NSRunningApplication
+            .runningApplications(withBundleIdentifier: bundleID)
+            .contains { $0.processIdentifier != myPID }
+        if hasOtherInstance {
+            NSApp.terminate(nil)
+        }
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         configureApplicationIcon()
         configureMenu()
@@ -83,7 +96,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func configureApplicationIcon() {
         guard
-            let url = Bundle.module.url(forResource: "AppIcon-1024", withExtension: "png"),
+            let url = AppResources.url(forResource: "AppIcon-1024", withExtension: "png"),
             let image = NSImage(contentsOf: url)
         else {
             return

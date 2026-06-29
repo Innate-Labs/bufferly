@@ -35,13 +35,18 @@ struct ClipCardView: View {
         clip.relativeTime == "刚刚" ? "刚刚" : clip.relativeTime + "前"
     }
 
-    /// 缩放：按下轻微下压、选中浮起、悬停微抬；Reduce Motion 下一律不缩放。
-    private var cardScale: CGFloat {
+    /// 只在按下瞬间缩小作反馈；hover / selected 不再整体放大。
+    /// 这张卡用了 compositingGroup 处理圆角抗锯齿，整体放大会把文字当纹理采样，导致发糊。
+    private var pressScale: CGFloat {
         if reduceMotion { return 1 }
-        if isPressed { return 0.97 }
-        if isSelected { return 1.03 }
-        if isHovering { return 1.02 }
-        return 1
+        return isPressed ? 0.98 : 1
+    }
+
+    private var liftOffset: CGFloat {
+        if reduceMotion { return 0 }
+        if isSelected { return -5 }
+        if isHovering { return -3 }
+        return 0
     }
 
     private var shadowRadius: CGFloat {
@@ -80,13 +85,14 @@ struct ClipCardView: View {
                 .strokeBorder(isSelected ? Color.accentColor : Color.primary.opacity(0.08),
                               lineWidth: isSelected ? 2 : 1)
         }
-        .scaleEffect(cardScale)
+        .scaleEffect(pressScale)
+        .offset(y: liftOffset)
         .shadow(color: .black.opacity(0.05), radius: 1, y: 1)
-        .shadow(color: .black.opacity(shadowOpacity), radius: shadowRadius, y: isSelected ? 6 : 3)
+        .shadow(color: .black.opacity(shadowOpacity), radius: shadowRadius, y: isSelected ? 7 : 4)
         .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .onHover { isHovering = $0 }
-        .animation(reduceMotion ? nil : .snappy(duration: 0.22), value: isHovering)
-        .animation(reduceMotion ? nil : .snappy(duration: 0.22), value: isSelected)
+        .animation(reduceMotion ? nil : .snappy(duration: 0.18), value: isHovering)
+        .animation(reduceMotion ? nil : .snappy(duration: 0.18), value: isSelected)
         .animation(reduceMotion ? nil : .snappy(duration: 0.13), value: isPressed)
         .onTapGesture {
             triggerPressPulse()

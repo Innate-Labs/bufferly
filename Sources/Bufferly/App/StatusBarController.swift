@@ -56,7 +56,7 @@ final class StatusBarController: NSObject {
     /// 菜单栏图标：优先用 Resources 里的模板图（系统按浅/深色菜单栏自动着色），失败时回退 SF Symbol。
     private static func makeStatusBarImage() -> NSImage? {
         if
-            let url = Bundle.module.url(forResource: "StatusBarIcon", withExtension: "png"),
+            let url = AppResources.url(forResource: "StatusBarIcon", withExtension: "png"),
             let image = NSImage(contentsOf: url)
         {
             image.size = NSSize(width: 18, height: 18)
