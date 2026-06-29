@@ -51,4 +51,18 @@ enum ClipBlobStore {
         }
         try? FileManager.default.removeItem(at: fileURL)
     }
+
+    static func deleteOrphans(keeping activeFilenames: Set<String>) {
+        guard let directory = try? blobsDirectory() else {
+            return
+        }
+
+        guard let filenames = try? FileManager.default.contentsOfDirectory(atPath: directory.path) else {
+            return
+        }
+
+        for filename in filenames where !activeFilenames.contains(filename) {
+            delete(filename: filename)
+        }
+    }
 }

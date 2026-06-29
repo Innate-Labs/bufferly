@@ -35,7 +35,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         hotKeyManager = HotKeyManager { [weak self] in
             self?.toggleQuickPanel()
         }
-        hotKeyManager?.register(AppSettings.shared.hotKeyPreset)
+        registerHotKey(AppSettings.shared.hotKeyPreset)
 
         let statusBarController = StatusBarController()
         statusBarController.onTogglePanel = { [weak self] in
@@ -70,13 +70,55 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func handlePasteRequest() {
+        let settings = AppSettings.shared
+        var statusMessage: String?
+        var statusKind: QuickPanelStatusKind = .success
+
+        if settings.autoPasteAfterSelection {
+            if !PasteController.pasteIntoApplication(pasteTargetApplication) {
+                statusMessage = autoPasteFailureMessage()
+                statusKind = .warning
+            }
+        } else {
+            statusMessage = "已复制到剪贴板"
+        }
+
+        if settings.hideAfterPaste {
+            hidePanelAfterPasteIfNeeded()
+        } else if let statusMessage {
+            postStatus(statusMessage, kind: statusKind)
+        }
+    }
+
+    private func autoPasteFailureMessage() -> String {
+        EventPostingPermission.shared.refresh()
+
+        if !EventPostingPermission.shared.isGranted {
+            return "已复制，自动粘贴需要授权"
+        }
+
+        if pasteTargetApplication == nil {
+            return "已复制，未找到粘贴目标"
+        }
+
+        return "已复制，自动粘贴失败"
+    }
+
+    private func postStatus(_ message: String, kind: QuickPanelStatusKind) {
+        NotificationCenter.default.post(
+            name: .quickPanelDidRequestStatus,
+            object: nil,
+            userInfo: [
+                QuickPanelStatusPayload.messageKey: message,
+                QuickPanelStatusPayload.kindKey: kind.rawValue
+            ]
+        )
+    }
+
+    private func hidePanelAfterPasteIfNeeded() {
         if AppSettings.shared.hideAfterPaste {
             quickPanelWindowController?.hidePanel()
             updateStatusBarPanelState()
-        }
-
-        if AppSettings.shared.autoPasteAfterSelection {
-            PasteController.pasteIntoApplication(pasteTargetApplication)
         }
     }
 
@@ -133,8 +175,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor in
-                self?.hotKeyManager?.register(AppSettings.shared.hotKeyPreset)
+                self?.registerHotKey(AppSettings.shared.hotKeyPreset)
             }
+        }
+    }
+
+    private func registerHotKey(_ preset: HotKeyPreset) {
+        let didRegister = hotKeyManager?.register(preset) == true
+        let errorMessage = didRegister ? nil : "\(preset.displayName) 注册失败，可能已被其它 App 占用。"
+        AppSettings.shared.setHotKeyRegistrationError(errorMessage)
+
+        if let errorMessage {
+            postStatus(errorMessage, kind: .warning)
         }
     }
 

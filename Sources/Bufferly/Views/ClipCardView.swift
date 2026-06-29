@@ -2,10 +2,10 @@ import AppKit
 import SwiftUI
 
 /// Paste 式剪贴板卡片：彩色头部（类型 + 时间 + 类型图标）+ 白色正文（文本/图片/文件/富文本预览 + 来源 + pin）。
-/// 选中态：抬起放大 + accentColor 描边 + 更强阴影。
+/// 卡片不绘制选中态；最新信息由卡片顺序表达。
 struct ClipCardView: View {
     let clip: ClipItem
-    let isSelected: Bool
+    let searchQuery: String
     let onSelect: () -> Void
     let onActivate: () -> Void
     let onTogglePin: () -> Void
@@ -27,12 +27,48 @@ struct ClipCardView: View {
     static let width: CGFloat = 208
     static let height: CGFloat = 272
 
+    init(
+        clip: ClipItem,
+        searchQuery: String = "",
+        onSelect: @escaping () -> Void,
+        onActivate: @escaping () -> Void,
+        onTogglePin: @escaping () -> Void
+    ) {
+        self.clip = clip
+        self.searchQuery = searchQuery
+        self.onSelect = onSelect
+        self.onActivate = onActivate
+        self.onTogglePin = onTogglePin
+    }
+
     private var isMonospaced: Bool {
         clip.kind == .code || clip.kind == .json || clip.kind == .command
     }
 
     private var timeText: String {
         clip.relativeTime == "刚刚" ? "刚刚" : clip.relativeTime + "前"
+    }
+
+    private var searchMatchLabel: String? {
+        let trimmedQuery = searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedQuery.isEmpty else {
+            return nil
+        }
+
+        if containsQuery(clip.title, query: trimmedQuery) {
+            return "标题"
+        }
+        if containsQuery(clip.kind.rawValue, query: trimmedQuery) {
+            return "类型"
+        }
+        if containsQuery(clip.source, query: trimmedQuery) {
+            return "来源"
+        }
+        if containsQuery(clip.preview, query: trimmedQuery) || containsQuery(clip.content, query: trimmedQuery) {
+            return "正文"
+        }
+
+        return "相关"
     }
 
     /// 只在按下瞬间缩小作反馈；hover / selected 不再整体放大。
@@ -44,21 +80,8 @@ struct ClipCardView: View {
 
     private var liftOffset: CGFloat {
         if reduceMotion { return 0 }
-        if isSelected { return -5 }
         if isHovering { return -3 }
         return 0
-    }
-
-    private var shadowRadius: CGFloat {
-        if isSelected { return 12 }
-        if isHovering { return 9 }
-        return 6
-    }
-
-    private var shadowOpacity: Double {
-        if isSelected { return 0.16 }
-        if isHovering { return 0.12 }
-        return 0.07
     }
 
     /// 点击时的按下脉冲：快速下压再弹回，给"点了有反应"的反馈（不新增手势，避免与横向滚动冲突）。
@@ -82,17 +105,13 @@ struct ClipCardView: View {
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .strokeBorder(isSelected ? Color.accentColor : Color.primary.opacity(0.08),
-                              lineWidth: isSelected ? 2 : 1)
+                .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
         }
         .scaleEffect(pressScale)
         .offset(y: liftOffset)
-        .shadow(color: .black.opacity(0.05), radius: 1, y: 1)
-        .shadow(color: .black.opacity(shadowOpacity), radius: shadowRadius, y: isSelected ? 7 : 4)
         .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .onHover { isHovering = $0 }
         .animation(reduceMotion ? nil : .snappy(duration: 0.18), value: isHovering)
-        .animation(reduceMotion ? nil : .snappy(duration: 0.18), value: isSelected)
         .animation(reduceMotion ? nil : .snappy(duration: 0.13), value: isPressed)
         .onTapGesture {
             triggerPressPulse()
@@ -106,7 +125,6 @@ struct ClipCardView: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(clip.kind.rawValue)，\(clip.title)，\(timeText)复制自 \(clip.source)")
-        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
     private var header: some View {
@@ -226,6 +244,14 @@ struct ClipCardView: View {
                 richTextBody
             case .url:
                 urlBody
+            case .json:
+                jsonBody
+            case .command:
+                commandBody
+            case .code:
+                codeBody
+            case .email:
+                emailBody
             default:
                 textBody
             }
@@ -240,6 +266,109 @@ struct ClipCardView: View {
             .lineLimit(9)
             .truncationMode(.tail)
             .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var codeBody: some View {
+        HStack(alignment: .top, spacing: 9) {
+            RoundedRectangle(cornerRadius: 2, style: .continuous)
+                .fill(clip.kind.accent.opacity(0.28))
+                .frame(width: 3)
+
+            Text(linePreview(from: clip.content, limit: 8))
+                .font(.system(.caption, design: .monospaced))
+                .foregroundStyle(.primary)
+                .lineSpacing(2)
+                .lineLimit(8)
+                .truncationMode(.tail)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private var commandBody: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(.green.opacity(0.75))
+                    .frame(width: 6, height: 6)
+                Circle()
+                    .fill(.yellow.opacity(0.75))
+                    .frame(width: 6, height: 6)
+                Circle()
+                    .fill(.red.opacity(0.75))
+                    .frame(width: 6, height: 6)
+
+                Spacer(minLength: 0)
+            }
+
+            Text(commandPreviewText)
+                .font(.system(.caption, design: .monospaced))
+                .foregroundStyle(.primary)
+                .lineSpacing(2)
+                .lineLimit(6)
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.primary.opacity(0.055), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 9, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
+        }
+    }
+
+    private var jsonBody: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            HStack(spacing: 6) {
+                Text(jsonMetaText)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(clip.kind.accent)
+                    .lineLimit(1)
+
+                Spacer(minLength: 0)
+
+                Image(systemName: "curlybraces")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(clip.kind.accent.opacity(0.75))
+            }
+
+            Text(linePreview(from: jsonPreviewText, limit: 8))
+                .font(.system(.caption2, design: .monospaced))
+                .foregroundStyle(.primary)
+                .lineSpacing(2)
+                .lineLimit(8)
+                .truncationMode(.tail)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(clip.kind.accent.opacity(0.07), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 9, style: .continuous)
+                .strokeBorder(clip.kind.accent.opacity(0.14), lineWidth: 1)
+        }
+    }
+
+    private var emailBody: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .top, spacing: 8) {
+                Image(systemName: "envelope.circle.fill")
+                    .font(.title3)
+                    .symbolRenderingMode(.hierarchical)
+                    .foregroundStyle(clip.kind.accent)
+
+                Text(clip.title)
+                    .font(.callout.weight(.medium))
+                    .foregroundStyle(.primary)
+                    .lineLimit(2)
+            }
+
+            Text(clip.content)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineSpacing(2)
+                .lineLimit(5)
+                .truncationMode(.middle)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     @ViewBuilder
@@ -301,31 +430,135 @@ struct ClipCardView: View {
     @ViewBuilder
     private var urlBody: some View {
         if linkTitle != nil || linkIcon != nil {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(alignment: .top, spacing: 6) {
-                    if let linkIcon {
-                        Image(nsImage: linkIcon)
-                            .resizable()
-                            .frame(width: 16, height: 16)
-                            .clipShape(RoundedRectangle(cornerRadius: 3, style: .continuous))
-                    }
+            urlPreviewBody(title: linkTitle ?? urlHostText, icon: linkIcon)
+        } else {
+            urlPreviewBody(title: urlHostText, icon: nil)
+        }
+    }
 
-                    Text(linkTitle ?? clip.content)
-                        .font(.callout.weight(.medium))
-                        .foregroundStyle(.primary)
-                        .lineLimit(3)
+    private func urlPreviewBody(title: String, icon: NSImage?) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .top, spacing: 7) {
+                if let icon {
+                    Image(nsImage: icon)
+                        .resizable()
+                        .frame(width: 17, height: 17)
+                        .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
+                } else {
+                    Image(systemName: "link.circle.fill")
+                        .font(.title3)
+                        .symbolRenderingMode(.hierarchical)
+                        .foregroundStyle(clip.kind.accent)
                 }
 
-                Text(clip.content)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-                    .truncationMode(.middle)
+                Text(title)
+                    .font(.callout.weight(.medium))
+                    .foregroundStyle(.primary)
+                    .lineLimit(3)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        } else {
-            textBody
+
+            Text(urlPathText)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(3)
+                .truncationMode(.middle)
+
+            Text(clip.content)
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+                .lineLimit(2)
+                .truncationMode(.middle)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var urlHostText: String {
+        guard let host = urlDisplayComponents?.host else {
+            return clip.title
+        }
+
+        return host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
+    }
+
+    private var urlPathText: String {
+        guard let components = urlDisplayComponents else {
+            return clip.content
+        }
+
+        let path = components.percentEncodedPath.isEmpty ? "/" : components.percentEncodedPath
+        let query = components.percentEncodedQuery.map { "?\($0)" } ?? ""
+        let fragment = components.percentEncodedFragment.map { "#\($0)" } ?? ""
+        let display = path + query + fragment
+
+        return display == "/" ? "/" : display
+    }
+
+    private var urlDisplayComponents: URLComponents? {
+        if let components = URLComponents(string: clip.content), components.host != nil {
+            return components
+        }
+
+        return URLComponents(string: "https://\(clip.content)")
+    }
+
+    private var commandPreviewText: String {
+        linePreview(from: clip.content, limit: 6, trimsWhitespace: true)
+            .components(separatedBy: .newlines)
+            .map { "$ \($0)" }
+            .joined(separator: "\n")
+    }
+
+    private var jsonMetaText: String {
+        guard let jsonObject else {
+            return "JSON"
+        }
+
+        if let dictionary = jsonObject as? [String: Any] {
+            return "\(dictionary.count) 个键"
+        }
+
+        if let array = jsonObject as? [Any] {
+            return "\(array.count) 项"
+        }
+
+        return "JSON 值"
+    }
+
+    private var jsonPreviewText: String {
+        guard let jsonObject else {
+            return clip.content
+        }
+
+        if
+            JSONSerialization.isValidJSONObject(jsonObject),
+            let data = try? JSONSerialization.data(withJSONObject: jsonObject, options: [.prettyPrinted, .sortedKeys]),
+            let text = String(data: data, encoding: .utf8)
+        {
+            return text
+        }
+
+        return String(describing: jsonObject)
+    }
+
+    private var jsonObject: Any? {
+        guard let data = clip.content.data(using: .utf8) else {
+            return nil
+        }
+
+        return try? JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed])
+    }
+
+    private func linePreview(from text: String, limit: Int, trimsWhitespace: Bool = false) -> String {
+        let lines = text
+            .components(separatedBy: .newlines)
+            .map { trimsWhitespace ? $0.trimmingCharacters(in: .whitespaces) : $0 }
+            .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+
+        if lines.isEmpty {
+            return text
+        }
+
+        return lines.prefix(limit).joined(separator: "\n")
     }
 
     /// 从 blob 懒加载图片缩略图 / 富文本富排版（仅附件型，小附件主线程读取即可）。
@@ -381,6 +614,16 @@ struct ClipCardView: View {
 
             Spacer(minLength: 4)
 
+            if let searchMatchLabel {
+                Text(searchMatchLabel)
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(clip.kind.accent)
+                    .padding(.horizontal, 6)
+                    .frame(height: 18)
+                    .background(clip.kind.accent.opacity(0.1), in: Capsule())
+                    .accessibilityLabel("搜索命中\(searchMatchLabel)")
+            }
+
             Button(action: onTogglePin) {
                 Image(systemName: clip.isPinned ? "pin.fill" : "pin")
                     .font(.system(size: 12, weight: .semibold))
@@ -388,17 +631,21 @@ struct ClipCardView: View {
                     .symbolEffect(.bounce, value: clip.isPinned)
             }
             .buttonStyle(.plain)
-            .opacity(clip.isPinned || isHovering || isSelected ? 1 : 0)
+            .opacity(clip.isPinned || isHovering ? 1 : 0)
             .accessibilityLabel(clip.isPinned ? "取消固定" : "固定")
         }
+    }
+
+    private func containsQuery(_ value: String, query: String) -> Bool {
+        value.range(of: query, options: [.caseInsensitive, .diacriticInsensitive]) != nil
     }
 }
 
 #Preview {
     HStack(spacing: 14) {
-        ClipCardView(clip: MockClips.all[0], isSelected: true, onSelect: {}, onActivate: {}, onTogglePin: {})
-        ClipCardView(clip: MockClips.all[3], isSelected: false, onSelect: {}, onActivate: {}, onTogglePin: {})
-        ClipCardView(clip: MockClips.all[6], isSelected: false, onSelect: {}, onActivate: {}, onTogglePin: {})
+            ClipCardView(clip: MockClips.all[0], onSelect: {}, onActivate: {}, onTogglePin: {})
+            ClipCardView(clip: MockClips.all[3], onSelect: {}, onActivate: {}, onTogglePin: {})
+            ClipCardView(clip: MockClips.all[6], onSelect: {}, onActivate: {}, onTogglePin: {})
     }
     .padding(40)
     .background(.regularMaterial)

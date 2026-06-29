@@ -22,15 +22,22 @@ final class QuickPanelViewModel: ObservableObject {
         }
     }
 
+    enum PasteMode {
+        case original
+        case plainText
+    }
+
     @Published var query = ""
     @Published private(set) var clips: [ClipItem] = []
     @Published var selectedID: ClipItem.ID?
+    @Published private(set) var isFocusVisible = false
     /// 仅在键盘 / 程序性选择时设置，驱动卡片墙把目标滚入视野；鼠标点击不设置，避免点一下整排乱跑。
     @Published var scrollTarget: ClipItem.ID?
     @Published var board: Board = .clipboard {
         didSet {
             guard oldValue != board else { return }
             selectedID = filteredClips.first?.id
+            isFocusVisible = false
             scrollTarget = selectedID
         }
     }
@@ -119,9 +126,14 @@ final class QuickPanelViewModel: ObservableObject {
         return filteredClips.first { $0.id == selectedID }
     }
 
+    var focusedClipID: ClipItem.ID? {
+        isFocusVisible ? selectedID : nil
+    }
+
     func startMonitoring() {
         loadPersistedClips()
         backfillSourceBundleIDs()
+        pruneOrphanedBlobs()
         clipboardMonitor.start()
         selectFirstIfNeeded()
     }
@@ -129,6 +141,12 @@ final class QuickPanelViewModel: ObservableObject {
     /// 呼出面板时主动补抓一次剪贴板，保证刚复制的内容已在列表里（不必等下一次轮询）。
     func captureLatestNow() {
         clipboardMonitor.checkNow()
+    }
+
+    func prepareForPanelShow() {
+        selectedID = filteredClips.first?.id
+        isFocusVisible = false
+        scrollTarget = selectedID
     }
 
     /// 一次性回填旧条目的来源 bundle id（功能上线前的历史没有它，导致无来源图标）。
@@ -275,23 +293,20 @@ final class QuickPanelViewModel: ObservableObject {
         }
 
         if !isDuplicate, let blob, let filename = newClip.attachmentFilename {
-            ClipBlobStore.write(blob, filename: filename)
+            guard ClipBlobStore.write(blob, filename: filename) else {
+                return
+            }
         }
 
         clips.insert(newClip, at: 0)
 
-        if clips.count > maxHistoryCount {
-            // 被裁掉的旧条目若带附件，一并清理 blob，避免磁盘泄漏。
-            clips.suffix(clips.count - maxHistoryCount).forEach { pruned in
-                if let filename = pruned.attachmentFilename {
-                    ClipBlobStore.delete(filename: filename)
-                }
-            }
-            clips.removeLast(clips.count - maxHistoryCount)
+        let locallyPruned = pruneInMemoryIfNeeded()
+        if let persistedPruned = persist(newClip) {
+            deleteAttachmentBlobs(for: locallyPruned + persistedPruned)
         }
 
-        persist(newClip)
         selectedID = filteredClips.first?.id
+        isFocusVisible = false
         scrollTarget = selectedID
     }
 
@@ -306,7 +321,7 @@ final class QuickPanelViewModel: ObservableObject {
     }
 
     func togglePinSelected() {
-        guard let selectedClip else {
+        guard isFocusVisible, let selectedClip else {
             return
         }
 
@@ -324,11 +339,16 @@ final class QuickPanelViewModel: ObservableObject {
     }
 
     func deleteSelected() {
-        guard let selectedClip else {
+        guard isFocusVisible, let selectedClip else {
             return
         }
 
         delete(clipID: selectedClip.id)
+    }
+
+    func select(clipID: ClipItem.ID, revealFocus: Bool = true) {
+        selectedID = clipID
+        isFocusVisible = revealFocus
     }
 
     func delete(clipID: ClipItem.ID) {
@@ -366,6 +386,7 @@ final class QuickPanelViewModel: ObservableObject {
 
         clips = keepPinned ? clips.filter(\.isPinned) : []
         selectedID = filteredClips.first?.id
+        isFocusVisible = false
 
         guard let clipStore else {
             return
@@ -379,12 +400,14 @@ final class QuickPanelViewModel: ObservableObject {
     }
 
     @discardableResult
-    func pasteSelected() -> Bool {
+    func pasteSelected(mode: PasteMode = .original) -> Bool {
         guard let selectedClip, !selectedClip.isSensitive else {
             return false
         }
 
-        pasteboard.clearContents()
+        if mode == .plainText {
+            return pastePlainText(selectedClip)
+        }
 
         switch selectedClip.kind {
         case .image:
@@ -394,17 +417,25 @@ final class QuickPanelViewModel: ObservableObject {
             else {
                 return false
             }
-            pasteboard.setData(data, forType: .png)
+            pasteboard.clearContents()
+            guard pasteboard.setData(data, forType: .png) else {
+                return false
+            }
 
         case .richText:
+            var wroteRTF = false
+            pasteboard.clearContents()
             if
                 let filename = selectedClip.attachmentFilename,
                 let rtf = ClipBlobStore.read(filename: filename)
             {
-                pasteboard.setData(rtf, forType: .rtf)
+                wroteRTF = pasteboard.setData(rtf, forType: .rtf)
             }
             // 始终附带纯文本，供「纯文本粘贴」与不支持富文本的目标兜底。
-            pasteboard.setString(selectedClip.content, forType: .string)
+            let wroteText = pasteboard.setString(selectedClip.content, forType: .string)
+            guard wroteRTF || wroteText else {
+                return false
+            }
 
         case .file:
             let urls = selectedClip.content
@@ -413,10 +444,13 @@ final class QuickPanelViewModel: ObservableObject {
             guard !urls.isEmpty else {
                 return false
             }
-            pasteboard.writeObjects(urls as [NSURL])
+            pasteboard.clearContents()
+            guard pasteboard.writeObjects(urls as [NSURL]) else {
+                return false
+            }
 
         default:
-            pasteboard.setString(selectedClip.content, forType: .string)
+            return pastePlainText(selectedClip)
         }
 
         clipboardMonitor.syncToCurrentChangeCount()
@@ -425,6 +459,7 @@ final class QuickPanelViewModel: ObservableObject {
 
     func handleQueryChange() {
         selectedID = filteredClips.first?.id
+        isFocusVisible = false
         scrollTarget = selectedID
     }
 
@@ -447,15 +482,73 @@ final class QuickPanelViewModel: ObservableObject {
         }
     }
 
-    private func persist(_ clip: ClipItem) {
+    private func pruneOrphanedBlobs() {
         guard let clipStore else {
             return
         }
 
         do {
-            try clipStore.upsert(clip)
+            let activeFilenames = try clipStore.fetchAttachmentFilenames()
+            ClipBlobStore.deleteOrphans(keeping: activeFilenames)
+        } catch {
+            print("Failed to prune orphaned blobs: \(error)")
+        }
+    }
+
+    private func pruneInMemoryIfNeeded() -> [ClipItem] {
+        let overflow = clips.count - maxHistoryCount
+
+        guard overflow > 0 else {
+            return []
+        }
+
+        let removable = clips
+            .filter { !$0.isPinned }
+            .sorted { $0.updatedAt < $1.updatedAt }
+            .prefix(overflow)
+
+        guard !removable.isEmpty else {
+            return []
+        }
+
+        let removableIDs = Set(removable.map(\.id))
+        clips.removeAll { removableIDs.contains($0.id) }
+        return Array(removable)
+    }
+
+    private func pastePlainText(_ clip: ClipItem) -> Bool {
+        guard clip.kind != .image else {
+            return false
+        }
+
+        pasteboard.clearContents()
+        guard pasteboard.setString(clip.content, forType: .string) else {
+            return false
+        }
+
+        clipboardMonitor.syncToCurrentChangeCount()
+        return true
+    }
+
+    private func deleteAttachmentBlobs(for clips: [ClipItem]) {
+        for clip in clips {
+            if let filename = clip.attachmentFilename {
+                ClipBlobStore.delete(filename: filename)
+            }
+        }
+    }
+
+    @discardableResult
+    private func persist(_ clip: ClipItem) -> [ClipItem]? {
+        guard let clipStore else {
+            return []
+        }
+
+        do {
+            return try clipStore.upsert(clip)
         } catch {
             print("Failed to persist clip: \(error)")
+            return nil
         }
     }
 
@@ -488,11 +581,19 @@ final class QuickPanelViewModel: ObservableObject {
 
         guard !visibleClips.isEmpty else {
             selectedID = nil
+            isFocusVisible = false
+            return
+        }
+
+        guard isFocusVisible else {
+            selectedID = visibleClips.first?.id
+            isFocusVisible = true
             return
         }
 
         guard let selectedID, let currentIndex = visibleClips.firstIndex(where: { $0.id == selectedID }) else {
             self.selectedID = visibleClips.first?.id
+            isFocusVisible = true
             return
         }
 

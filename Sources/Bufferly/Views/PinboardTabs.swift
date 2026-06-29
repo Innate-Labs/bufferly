@@ -43,7 +43,6 @@ struct PinboardTabs: View {
                             Capsule(style: .continuous)
                                 .strokeBorder(.white.opacity(0.12))
                         )
-                        .shadow(color: .black.opacity(0.10), radius: 1.5, y: 1)
                         .matchedGeometryEffect(id: "pinboardPill", in: pillNamespace)
                 }
             }

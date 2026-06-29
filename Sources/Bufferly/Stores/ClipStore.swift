@@ -22,19 +22,28 @@ final class ClipStore {
 
     func fetchClips() throws -> [ClipItem] {
         try dbQueue.read { db in
-            try ClipRecord
-                .order(Column("isPinned").desc, Column("updatedAt").desc)
-                .limit(maxHistoryCount)
+            let pinned = try ClipRecord
+                .filter(Column("isPinned") == true)
+                .order(Column("updatedAt").desc)
                 .fetchAll(db)
-                .map(\.clipItem)
+
+            let unpinnedLimit = max(0, maxHistoryCount - pinned.count)
+            let unpinned = try ClipRecord
+                .filter(Column("isPinned") == false)
+                .order(Column("isPinned").desc, Column("updatedAt").desc)
+                .limit(unpinnedLimit)
+                .fetchAll(db)
+
+            return (pinned + unpinned).map(\.clipItem)
         }
     }
 
-    func upsert(_ clip: ClipItem) throws {
+    @discardableResult
+    func upsert(_ clip: ClipItem) throws -> [ClipItem] {
         try dbQueue.write { db in
             var record = ClipRecord(clip)
             try record.save(db)
-            try pruneIfNeeded(db)
+            return try pruneIfNeeded(db)
         }
     }
 
@@ -75,6 +84,20 @@ final class ClipStore {
         }
     }
 
+    func fetchAttachmentFilenames() throws -> Set<String> {
+        try dbQueue.read { db in
+            let filenames = try String.fetchAll(
+                db,
+                sql: """
+                SELECT attachmentFilename
+                FROM clips
+                WHERE attachmentFilename IS NOT NULL
+                """
+            )
+            return Set(filenames)
+        }
+    }
+
     private func migrate() throws {
         var migrator = DatabaseMigrator()
 
@@ -111,11 +134,11 @@ final class ClipStore {
         try migrator.migrate(dbQueue)
     }
 
-    private func pruneIfNeeded(_ db: Database) throws {
+    private func pruneIfNeeded(_ db: Database) throws -> [ClipItem] {
         let totalCount = try ClipRecord.fetchCount(db)
 
         guard totalCount > maxHistoryCount else {
-            return
+            return []
         }
 
         let removableIDs = try String.fetchAll(
@@ -131,12 +154,18 @@ final class ClipStore {
         )
 
         guard !removableIDs.isEmpty else {
-            return
+            return []
         }
+
+        let removableRecords = try ClipRecord
+            .filter(removableIDs.contains(Column("id")))
+            .fetchAll(db)
 
         try ClipRecord
             .filter(removableIDs.contains(Column("id")))
             .deleteAll(db)
+
+        return removableRecords.map(\.clipItem)
     }
 
     private static func databaseURL() throws -> URL {

@@ -51,4 +51,19 @@ cat > "$CONTENTS_DIR/Info.plist" <<'PLIST'
 </plist>
 PLIST
 
+SIGN_ID="${BUFFERLY_SIGN_IDENTITY:-}"
+if [ -z "$SIGN_ID" ]; then
+  SIGN_ID="$(security find-identity -v -p codesigning 2>/dev/null | grep -m1 'Developer ID Application' | sed -E 's/.*"(.*)"/\1/' || true)"
+fi
+
+if [ -n "$SIGN_ID" ]; then
+  echo "Signing with Developer ID: $SIGN_ID"
+  codesign --force --deep --options runtime --sign "$SIGN_ID" "$APP_DIR"
+else
+  echo "Signing ad-hoc"
+  codesign --force --deep --sign - "$APP_DIR"
+fi
+
+codesign --verify --deep --strict --verbose=2 "$APP_DIR"
+
 echo "Built $APP_DIR"

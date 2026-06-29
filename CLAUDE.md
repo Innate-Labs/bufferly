@@ -43,7 +43,7 @@
 
 - 开发：`swift run Bufferly`
 - 构建：`swift build`
-- 打包本地 app：`bash scripts/build-app.sh`，产物在 `.build/Bufferly.app`
+- 打包本地 app：`bash scripts/build-app.sh`，产物在 `.build/Bufferly.app`（自动 Developer ID / ad-hoc 签名并校验）
 - 打包 DMG：`bash scripts/build-dmg.sh`，产物在 `.build/Bufferly.dmg`（无 Developer ID 时 ad-hoc 签名，本机可运行；零警告分发需 Developer ID + 公证）
 - 类型检查 / 测试：`swift build`
 

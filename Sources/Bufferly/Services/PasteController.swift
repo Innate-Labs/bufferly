@@ -12,7 +12,11 @@ enum PasteController {
             return false
         }
 
-        application?.activate(options: [])
+        guard let application else {
+            return false
+        }
+
+        application.activate(options: [])
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) {
             sendCommandV()

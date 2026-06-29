@@ -1,14 +1,15 @@
 import AppKit
+import QuartzCore
 import SwiftUI
 
 final class QuickPanelWindowController: NSWindowController, NSWindowDelegate {
     var onVisibilityChange: ((Bool) -> Void)?
 
-    /// 退场动画进行中标记：若淡出途中又被呼出（showPanel 置 false），完成回调不再 orderOut，避免误关。
-    private var pendingHide = false
+    private var visibilityAnimationID = UUID()
+    private var isHiding = false
 
     var isPanelVisible: Bool {
-        window?.isVisible == true
+        window?.isVisible == true && !isHiding
     }
 
     init() {
@@ -30,7 +31,7 @@ final class QuickPanelWindowController: NSWindowController, NSWindowDelegate {
         window.titlebarAppearsTransparent = true
         window.backgroundColor = .clear
         window.isOpaque = false
-        window.hasShadow = true
+        window.hasShadow = false
         window.level = .floating
         window.collectionBehavior = [.moveToActiveSpace, .transient]
         window.isReleasedWhenClosed = false
@@ -72,34 +73,43 @@ final class QuickPanelWindowController: NSWindowController, NSWindowDelegate {
             return
         }
 
-        // 取消任何进行中的退场动画（淡出途中重新呼出）。
-        pendingHide = false
+        let animationID = UUID()
+        visibilityAnimationID = animationID
+        isHiding = false
 
         positionAtBottom()
         let finalFrame = window.frame
+        let shouldAnimate = !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
 
-        if NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
+        if shouldAnimate {
+            var startFrame = finalFrame
+            startFrame.origin.y -= 6
+            window.setFrame(startFrame, display: false)
+            window.alphaValue = 0
+        } else {
             window.alphaValue = 1
-            showWindow(nil)
-            window.makeKeyAndOrderFront(nil)
-            NSApp.activate(ignoringOtherApps: true)
-            onVisibilityChange?(true)
-            NotificationCenter.default.post(name: .quickPanelDidShow, object: nil)
-            return
         }
 
-        // 从略低处升起 + 淡入，类似 Spotlight 的克制入场。
-        window.alphaValue = 0
-        window.setFrame(finalFrame.offsetBy(dx: 0, dy: -10), display: false)
         showWindow(nil)
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
 
-        NSAnimationContext.runAnimationGroup { context in
-            context.duration = 0.16
-            context.timingFunction = CAMediaTimingFunction(name: .easeOut)
-            window.animator().alphaValue = 1
-            window.animator().setFrame(finalFrame, display: true)
+        if shouldAnimate {
+            window.alphaValue = 0
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = 0.12
+                context.timingFunction = CAMediaTimingFunction(controlPoints: 0.23, 1, 0.32, 1)
+                window.animator().alphaValue = 1
+                window.animator().setFrame(finalFrame, display: true)
+            } completionHandler: { [weak self, weak window] in
+                Task { @MainActor in
+                    guard let self, self.visibilityAnimationID == animationID else {
+                        return
+                    }
+                    window?.alphaValue = 1
+                    window?.setFrame(finalFrame, display: false)
+                }
+            }
         }
 
         onVisibilityChange?(true)
@@ -108,38 +118,41 @@ final class QuickPanelWindowController: NSWindowController, NSWindowDelegate {
 
     func hidePanel() {
         guard let window, window.isVisible else {
+            isHiding = false
             onVisibilityChange?(false)
             return
         }
 
+        let animationID = UUID()
+        visibilityAnimationID = animationID
+        isHiding = true
         onVisibilityChange?(false)
 
-        // Reduce Motion：直接隐藏，不做退场动画。
-        if NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
+        guard !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion else {
             window.orderOut(nil)
+            window.alphaValue = 1
+            isHiding = false
             return
         }
 
-        // 入场的镜像：下沉 10px + 淡出。
-        pendingHide = true
-        let sunkFrame = window.frame.offsetBy(dx: 0, dy: -10)
+        var finalFrame = window.frame
+        finalFrame.origin.y -= 6
 
-        NSAnimationContext.runAnimationGroup({ context in
-            context.duration = 0.13
-            context.timingFunction = CAMediaTimingFunction(name: .easeIn)
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.09
+            context.timingFunction = CAMediaTimingFunction(controlPoints: 0.23, 1, 0.32, 1)
             window.animator().alphaValue = 0
-            window.animator().setFrame(sunkFrame, display: true)
-        }, completionHandler: { [weak self] in
-            // completion 在主线程回调；断言隔离以安全访问 MainActor 状态。
-            MainActor.assumeIsolated {
-                // 淡出途中若又被呼出，showPanel 已把 pendingHide 置 false，这里不再 orderOut。
-                guard let self, self.pendingHide else {
+            window.animator().setFrame(finalFrame, display: true)
+        } completionHandler: { [weak self, weak window] in
+            Task { @MainActor in
+                guard let self, self.visibilityAnimationID == animationID else {
                     return
                 }
-                self.window?.orderOut(nil)
-                self.pendingHide = false
+                window?.orderOut(nil)
+                window?.alphaValue = 1
+                self.isHiding = false
             }
-        })
+        }
     }
 
     func windowDidResignKey(_ notification: Notification) {

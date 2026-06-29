@@ -8,6 +8,8 @@ struct QuickPanelView: View {
     @State private var keyMonitor: Any?
     @State private var showPreview = false
     @State private var showOnboarding = false
+    @State private var statusBanner: StatusBanner?
+    @State private var statusDismissTask: Task<Void, Never>?
 
     init(viewModel: QuickPanelViewModel = QuickPanelViewModel()) {
         _viewModel = StateObject(wrappedValue: viewModel)
@@ -24,6 +26,14 @@ struct QuickPanelView: View {
         // 外圆角 = 卡片圆角(14) + 卡片内边距(20)，与卡片同心。
         // 面板用实材质作底，让上面的 Liquid Glass 控件清晰浮起。
         .panelBackground(cornerRadius: 34)
+        .overlay(alignment: .bottom) {
+            if let statusBanner, !showPreview, !showOnboarding {
+                statusBannerView(statusBanner)
+                    .padding(.bottom, 18)
+                    .transition(statusTransition)
+            }
+        }
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.16), value: statusBanner)
         .overlay {
             if showPreview, viewModel.selectedClip != nil {
                 previewOverlay
@@ -40,14 +50,22 @@ struct QuickPanelView: View {
             focusSearch()
             showOnboarding = !AppSettings.shared.hasCompletedOnboarding
         }
+        .onDisappear {
+            statusDismissTask?.cancel()
+            statusDismissTask = nil
+        }
         .onChange(of: viewModel.query) {
             viewModel.handleQueryChange()
         }
         // 面板每次重新显示：补抓一次剪贴板（让最新一条立刻在），并把焦点交还搜索框。
         .onReceive(NotificationCenter.default.publisher(for: .quickPanelDidShow)) { _ in
+            viewModel.prepareForPanelShow()
             viewModel.captureLatestNow()
             showPreview = false
             focusSearch()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .quickPanelDidRequestStatus)) { notification in
+            handleStatusNotification(notification)
         }
     }
 
@@ -78,9 +96,17 @@ struct QuickPanelView: View {
             TextField("搜索剪贴板", text: $viewModel.query)
                 .textFieldStyle(.plain)
                 .focused($searchFocused)
-                .onSubmit(activateSelection)
+                .onSubmit { activateSelection() }
 
             if !viewModel.query.isEmpty {
+                Text("\(viewModel.filteredClips.count)")
+                    .font(.caption2.monospacedDigit())
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 6)
+                    .frame(height: 18)
+                    .background(Color.secondary.opacity(0.12), in: Capsule())
+                    .accessibilityLabel("匹配 \(viewModel.filteredClips.count) 条")
+
                 Button {
                     viewModel.query = ""
                 } label: {
@@ -114,17 +140,15 @@ struct QuickPanelView: View {
                         ForEach(viewModel.filteredClips) { clip in
                             ClipCardView(
                                 clip: clip,
-                                isSelected: viewModel.selectedID == clip.id,
-                                onSelect: { viewModel.selectedID = clip.id },
+                                searchQuery: viewModel.query,
+                                onSelect: { viewModel.select(clipID: clip.id) },
                                 onActivate: {
-                                    viewModel.selectedID = clip.id
+                                    viewModel.select(clipID: clip.id)
                                     activateSelection()
                                 },
                                 onTogglePin: { viewModel.togglePin(clipID: clip.id) }
                             )
                             .id(clip.id)
-                            // 选中卡浮起时盖在相邻卡之上，焦点更清晰。
-                            .zIndex(viewModel.selectedID == clip.id ? 1 : 0)
                             .contextMenu {
                                 clipActions(for: clip)
                             }
@@ -139,9 +163,7 @@ struct QuickPanelView: View {
                 .scrollEdgeEffectStyle(.soft, for: .horizontal)
                 .onChange(of: viewModel.scrollTarget) {
                     guard let target = viewModel.scrollTarget else { return }
-                    withAnimation(reduceMotion ? nil : .easeOut(duration: 0.1)) {
-                        proxy.scrollTo(target, anchor: .center)
-                    }
+                    proxy.scrollTo(target, anchor: .center)
                 }
             }
             .frame(maxHeight: .infinity)
@@ -176,13 +198,13 @@ struct QuickPanelView: View {
     @ViewBuilder
     private func clipActions(for clip: ClipItem) -> some View {
         Button("粘贴") {
-            viewModel.selectedID = clip.id
+            viewModel.select(clipID: clip.id, revealFocus: false)
             activateSelection()
         }
         .disabled(clip.isSensitive)
 
         Button("复制") {
-            viewModel.selectedID = clip.id
+            viewModel.select(clipID: clip.id, revealFocus: false)
             copyOnlyAndClose()
         }
         .disabled(clip.isSensitive)
@@ -215,6 +237,67 @@ struct QuickPanelView: View {
     }
 
     // MARK: - 覆盖层
+
+    private var statusTransition: AnyTransition {
+        reduceMotion ? .opacity : .opacity.combined(with: .move(edge: .bottom))
+    }
+
+    private func statusBannerView(_ banner: StatusBanner) -> some View {
+        HStack(spacing: 10) {
+            ZStack {
+                Circle()
+                    .fill(banner.kind.tint.opacity(0.12))
+                    .frame(width: 22, height: 22)
+
+                Image(systemName: banner.kind.symbolName)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(banner.kind.tint)
+            }
+
+            Text(banner.message)
+                .font(.caption.weight(.medium))
+                .foregroundStyle(.primary)
+                .lineLimit(1)
+
+            Spacer(minLength: 0)
+        }
+        .padding(.leading, 8)
+        .padding(.trailing, 12)
+        .frame(width: 300, height: 38)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 11, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
+        }
+        .overlay(alignment: .leading) {
+            RoundedRectangle(cornerRadius: 2, style: .continuous)
+                .fill(banner.kind.tint.opacity(0.65))
+                .frame(width: 3, height: 20)
+                .padding(.leading, 1)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(banner.message)
+    }
+
+    private func handleStatusNotification(_ notification: Notification) {
+        guard let message = notification.userInfo?[QuickPanelStatusPayload.messageKey] as? String else {
+            return
+        }
+
+        let kindRawValue = notification.userInfo?[QuickPanelStatusPayload.kindKey] as? String
+        let kind = kindRawValue.flatMap(QuickPanelStatusKind.init(rawValue:)) ?? .info
+        showStatus(message, kind: kind)
+    }
+
+    private func showStatus(_ message: String, kind: QuickPanelStatusKind) {
+        statusBanner = StatusBanner(message: message, kind: kind)
+        statusDismissTask?.cancel()
+        statusDismissTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 1_600_000_000)
+            guard !Task.isCancelled else { return }
+            statusBanner = nil
+        }
+    }
 
     /// 首次使用引导：一次性，看过即不再出现。
     private var onboardingOverlay: some View {
@@ -252,7 +335,6 @@ struct QuickPanelView: View {
             .padding(28)
             .frame(maxWidth: 380)
             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-            .shadow(color: .black.opacity(0.2), radius: 20, y: 8)
             .padding(24)
         }
     }
@@ -301,7 +383,6 @@ struct QuickPanelView: View {
                 .padding(18)
                 .frame(maxWidth: 560, maxHeight: 300)
                 .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-                .shadow(color: .black.opacity(0.25), radius: 22, y: 8)
                 .padding(20)
             }
         }
@@ -390,8 +471,8 @@ struct QuickPanelView: View {
         case (36, []), (76, []): // Return / 小键盘 Enter
             activateSelection()
             return nil
-        case (36, [.command]), (76, [.command]): // ⌘Return 粘贴
-            activateSelection()
+        case (36, [.command]), (76, [.command]): // ⌘Return 纯文本粘贴
+            activateSelection(mode: .plainText)
             return nil
         case (36, [.option]), (76, [.option]): // ⌥Return 仅复制后关闭
             copyOnlyAndClose()
@@ -430,9 +511,11 @@ struct QuickPanelView: View {
         AppSettings.shared.hasCompletedOnboarding = true
     }
 
-    private func activateSelection() {
-        if viewModel.pasteSelected() {
+    private func activateSelection(mode: QuickPanelViewModel.PasteMode = .original) {
+        if viewModel.pasteSelected(mode: mode) {
             NotificationCenter.default.post(name: .quickPanelDidRequestPaste, object: nil)
+        } else {
+            showStatus(pasteFailureMessage, kind: .warning)
         }
     }
 
@@ -440,6 +523,50 @@ struct QuickPanelView: View {
     private func copyOnlyAndClose() {
         if viewModel.pasteSelected() {
             NotificationCenter.default.post(name: .quickPanelDidRequestClose, object: nil)
+        } else {
+            showStatus(pasteFailureMessage, kind: .warning)
+        }
+    }
+
+    private var pasteFailureMessage: String {
+        guard let selectedClip = viewModel.selectedClip else {
+            return "没有可复制内容"
+        }
+
+        if selectedClip.isSensitive {
+            return "敏感内容不会写入剪贴板"
+        }
+
+        return "无法写入剪贴板"
+    }
+}
+
+private struct StatusBanner: Equatable {
+    let id = UUID()
+    let message: String
+    let kind: QuickPanelStatusKind
+}
+
+private extension QuickPanelStatusKind {
+    var symbolName: String {
+        switch self {
+        case .success:
+            return "checkmark.circle.fill"
+        case .warning:
+            return "exclamationmark.triangle.fill"
+        case .info:
+            return "info.circle.fill"
+        }
+    }
+
+    var tint: Color {
+        switch self {
+        case .success:
+            return .green
+        case .warning:
+            return .orange
+        case .info:
+            return .blue
         }
     }
 }

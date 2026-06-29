@@ -11,29 +11,16 @@ DMG="$ROOT/.build/Bufferly.dmg"
 STAGING="$ROOT/.build/dmg-staging"
 VOLNAME="Bufferly"
 
-# 1. 构建 release .app
+# 1. 构建并签名 release .app
 bash "$ROOT/scripts/build-app.sh"
 
-# 2. 代码签名：有 Developer ID 用之，否则 ad-hoc（Apple Silicon 必须至少 ad-hoc 才能运行）
-SIGN_ID="${BUFFERLY_SIGN_IDENTITY:-}"
-if [ -z "$SIGN_ID" ]; then
-  SIGN_ID="$(security find-identity -v -p codesigning 2>/dev/null | grep -m1 'Developer ID Application' | sed -E 's/.*"(.*)"/\1/' || true)"
-fi
-if [ -n "$SIGN_ID" ]; then
-  echo "==> 用 Developer ID 签名：$SIGN_ID"
-  codesign --force --deep --options runtime --sign "$SIGN_ID" "$APP"
-else
-  echo "==> 无 Developer ID，ad-hoc 签名（本机可运行，分发会有 Gatekeeper 提示）"
-  codesign --force --deep --sign - "$APP"
-fi
-
-# 3. 准备 DMG 内容：App + Applications 快捷方式
+# 2. 准备 DMG 内容：App + Applications 快捷方式
 rm -rf "$STAGING" "$DMG"
 mkdir -p "$STAGING"
 cp -R "$APP" "$STAGING/"
 ln -s /Applications "$STAGING/Applications"
 
-# 4. 生成压缩 DMG
+# 3. 生成压缩 DMG
 hdiutil create \
   -volname "$VOLNAME" \
   -srcfolder "$STAGING" \

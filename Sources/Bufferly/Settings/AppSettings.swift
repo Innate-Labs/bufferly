@@ -80,6 +80,8 @@ final class AppSettings: ObservableObject {
         }
     }
 
+    @Published private(set) var hotKeyRegistrationError: String?
+
     private let defaults: UserDefaults
 
     init(defaults: UserDefaults = .standard) {
@@ -105,6 +107,10 @@ final class AppSettings: ObservableObject {
             defaults.set(true, forKey: Keys.storeSensitivePlaceholder)
         }
 
+        if defaults.object(forKey: Keys.excludedBundleIDs) == nil {
+            defaults.set(Self.defaultExcludedBundleIDs, forKey: Keys.excludedBundleIDs)
+        }
+
         autoPasteAfterSelection = defaults.bool(forKey: Keys.autoPasteAfterSelection)
         hideAfterPaste = defaults.bool(forKey: Keys.hideAfterPaste)
         maxHistoryCount = defaults.integer(forKey: Keys.maxHistoryCount)
@@ -117,8 +123,22 @@ final class AppSettings: ObservableObject {
         launchAtLogin = LoginItem.isEnabled
         hotKeyPreset = HotKeyPreset(rawValue: defaults.string(forKey: Keys.hotKeyPreset) ?? "")
             ?? .optionSpace
-        excludedBundleIDs = defaults.stringArray(forKey: Keys.excludedBundleIDs) ?? []
+        excludedBundleIDs = defaults.stringArray(forKey: Keys.excludedBundleIDs) ?? Self.defaultExcludedBundleIDs
     }
+
+    func setHotKeyRegistrationError(_ message: String?) {
+        hotKeyRegistrationError = message
+    }
+
+    private static let defaultExcludedBundleIDs = [
+        "com.apple.keychainaccess",
+        "com.apple.Passwords",
+        "com.1password.1password",
+        "com.agilebits.onepassword7",
+        "com.bitwarden.desktop",
+        "com.lastpass.LastPass",
+        "com.dashlane.dashlanephonefinal"
+    ]
 
     private enum Keys {
         static let autoPasteAfterSelection = "autoPasteAfterSelection"
