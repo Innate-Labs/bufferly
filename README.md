@@ -77,6 +77,7 @@ cd bufferly
 
 swift run Bufferly            # 开发运行
 bash scripts/build-app.sh     # 打包 .app → .build/Bufferly.app
+bash scripts/install-app.sh   # 覆盖安装到 /Applications 并启动
 bash scripts/build-dmg.sh     # 打包 .dmg → .build/Bufferly.dmg
 ```
 
