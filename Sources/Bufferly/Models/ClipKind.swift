@@ -53,8 +53,8 @@ enum ClipKind: String, CaseIterable, Identifiable {
         }
     }
 
-    /// 卡片顶部细色条与类型图标使用的颜色，按内容类型区分。
-    /// 颜色只帮助扫读类型，不承担选中态或主要层级。
+    /// 卡片彩色头部使用的颜色，按内容类型区分。
+    /// 颜色只帮助扫读类型，不承担选中态。
     var accent: Color {
         switch self {
         case .text:
