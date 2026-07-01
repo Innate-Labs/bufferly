@@ -96,14 +96,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         EventPostingPermission.shared.refresh()
 
         if !EventPostingPermission.shared.isGranted {
-            return "已复制，贴回上一应用需要授权"
+            return "已复制，粘贴到上一应用需要授权"
         }
 
         if pasteTargetApplication == nil {
             return "已复制，未找到上一应用"
         }
 
-        return "已复制，贴回上一应用失败"
+        return "已复制，粘贴到上一应用失败"
     }
 
     private func postStatus(_ message: String, kind: QuickPanelStatusKind) {

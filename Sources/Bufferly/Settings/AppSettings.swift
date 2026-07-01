@@ -25,6 +25,14 @@ final class AppSettings: ObservableObject {
             }
 
             defaults.set(maxHistoryCount, forKey: Keys.maxHistoryCount)
+            NotificationCenter.default.post(name: .historyPolicyDidChange, object: nil)
+        }
+    }
+
+    @Published var historyRetention: HistoryRetention {
+        didSet {
+            defaults.set(historyRetention.rawValue, forKey: Keys.historyRetention)
+            NotificationCenter.default.post(name: .historyPolicyDidChange, object: nil)
         }
     }
 
@@ -99,6 +107,10 @@ final class AppSettings: ObservableObject {
             defaults.set(500, forKey: Keys.maxHistoryCount)
         }
 
+        if defaults.object(forKey: Keys.historyRetention) == nil {
+            defaults.set(HistoryRetention.forever.rawValue, forKey: Keys.historyRetention)
+        }
+
         if defaults.object(forKey: Keys.sensitiveFiltering) == nil {
             defaults.set(true, forKey: Keys.sensitiveFiltering)
         }
@@ -114,6 +126,8 @@ final class AppSettings: ObservableObject {
         autoPasteAfterSelection = defaults.bool(forKey: Keys.autoPasteAfterSelection)
         hideAfterPaste = defaults.bool(forKey: Keys.hideAfterPaste)
         maxHistoryCount = defaults.integer(forKey: Keys.maxHistoryCount)
+        historyRetention = HistoryRetention(rawValue: defaults.string(forKey: Keys.historyRetention) ?? "")
+            ?? .forever
         sensitiveFiltering = defaults.bool(forKey: Keys.sensitiveFiltering)
         storeSensitivePlaceholder = defaults.bool(forKey: Keys.storeSensitivePlaceholder)
         // 默认 false（缺省即关）：联网获取链接预览是 opt-in。
@@ -130,20 +144,26 @@ final class AppSettings: ObservableObject {
         hotKeyRegistrationError = message
     }
 
-    private static let defaultExcludedBundleIDs = [
+    static let recommendedExcludedBundleIDs = [
         "com.apple.keychainaccess",
         "com.apple.Passwords",
         "com.1password.1password",
         "com.agilebits.onepassword7",
         "com.bitwarden.desktop",
         "com.lastpass.LastPass",
-        "com.dashlane.dashlanephonefinal"
+        "com.dashlane.dashlanephonefinal",
+        "com.nordpass.NordPass",
+        "me.proton.pass",
+        "com.roboform.mac"
     ]
+
+    private static let defaultExcludedBundleIDs = recommendedExcludedBundleIDs
 
     private enum Keys {
         static let autoPasteAfterSelection = "autoPasteAfterSelection"
         static let hideAfterPaste = "hideAfterPaste"
         static let maxHistoryCount = "maxHistoryCount"
+        static let historyRetention = "historyRetention"
         static let sensitiveFiltering = "sensitiveFiltering"
         static let storeSensitivePlaceholder = "storeSensitivePlaceholder"
         static let linkPreviewsEnabled = "linkPreviewsEnabled"

@@ -17,7 +17,7 @@ final class EventPostingPermission: ObservableObject {
 
     @discardableResult
     func requestAccess() -> Bool {
-        // “贴回上一应用”通过 CGEvent 模拟 ⌘V。用户实际在系统设置里授予的是
+        // “复制后粘贴到上一应用”通过 CGEvent 模拟 ⌘V。用户实际在系统设置里授予的是
         // 辅助功能权限，所以 UI 状态应以 AX 信任为准；CoreGraphics 的
         // PostEvent preflight 在部分系统上不会跟辅助功能列表同步，导致误报未授权。
         isGranted = Self.accessibilityTrusted(prompt: true)

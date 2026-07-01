@@ -7,10 +7,12 @@ final class ClipStore {
     }
 
     private let dbQueue: DatabaseQueue
-    private let maxHistoryCount: Int
+    private var maxHistoryCount: Int
+    private var historyRetentionDays: Int?
 
-    init(maxHistoryCount: Int = 500) throws {
+    init(maxHistoryCount: Int = 500, historyRetentionDays: Int? = nil) throws {
         self.maxHistoryCount = maxHistoryCount
+        self.historyRetentionDays = historyRetentionDays
         let databaseURL = try Self.databaseURL()
         try FileManager.default.createDirectory(
             at: databaseURL.deletingLastPathComponent(),
@@ -21,7 +23,9 @@ final class ClipStore {
     }
 
     func fetchClips() throws -> [ClipItem] {
-        try dbQueue.read { db in
+        try dbQueue.write { db in
+            _ = try pruneExpiredIfNeeded(db)
+
             let pinned = try ClipRecord
                 .filter(Column("isPinned") == true)
                 .order(Column("updatedAt").desc)
@@ -43,7 +47,20 @@ final class ClipStore {
         try dbQueue.write { db in
             var record = ClipRecord(clip)
             try record.save(db)
-            return try pruneIfNeeded(db)
+            let expired = try pruneExpiredIfNeeded(db)
+            let overflow = try pruneIfNeeded(db)
+            return expired + overflow
+        }
+    }
+
+    func updateHistoryPolicy(maxHistoryCount: Int, historyRetentionDays: Int?) throws -> [ClipItem] {
+        self.maxHistoryCount = maxHistoryCount
+        self.historyRetentionDays = historyRetentionDays
+
+        return try dbQueue.write { db in
+            let expired = try pruneExpiredIfNeeded(db)
+            let overflow = try pruneIfNeeded(db)
+            return expired + overflow
         }
     }
 
@@ -161,6 +178,36 @@ final class ClipStore {
             .filter(removableIDs.contains(Column("id")))
             .fetchAll(db)
 
+        try ClipRecord
+            .filter(removableIDs.contains(Column("id")))
+            .deleteAll(db)
+
+        return removableRecords.map(\.clipItem)
+    }
+
+    private func pruneExpiredIfNeeded(_ db: Database) throws -> [ClipItem] {
+        guard
+            let historyRetentionDays,
+            historyRetentionDays > 0,
+            let cutoffDate = Calendar.current.date(
+                byAdding: .day,
+                value: -historyRetentionDays,
+                to: Date()
+            )
+        else {
+            return []
+        }
+
+        let removableRecords = try ClipRecord
+            .filter(Column("isPinned") == false)
+            .filter(Column("updatedAt") < cutoffDate)
+            .fetchAll(db)
+
+        guard !removableRecords.isEmpty else {
+            return []
+        }
+
+        let removableIDs = removableRecords.map(\.id)
         try ClipRecord
             .filter(removableIDs.contains(Column("id")))
             .deleteAll(db)

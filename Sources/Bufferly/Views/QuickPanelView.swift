@@ -148,7 +148,7 @@ struct QuickPanelView: View {
             return "只复制"
         }
 
-        return "贴回上一应用"
+        return "粘贴到上一应用"
     }
 
     // MARK: - Card wall
@@ -218,7 +218,7 @@ struct QuickPanelView: View {
 
     // MARK: - Actions
 
-    /// 卡片右键 / ⌘K 共用的动作列表。
+    /// 卡片右键动作列表，保持为高频操作，不放开发者转换类动作。
     @ViewBuilder
     private func clipActions(for clip: ClipItem) -> some View {
         Button(returnActionTitle) {
@@ -235,23 +235,6 @@ struct QuickPanelView: View {
 
         Button(clip.isPinned ? "取消固定" : "固定") {
             viewModel.togglePin(clipID: clip.id)
-        }
-
-        if clip.kind == .json {
-            Divider()
-            Button("格式化 JSON") {
-                viewModel.applyTransform(ClipTransform.formatJSON, to: clip.id)
-            }
-            Button("压缩 JSON") {
-                viewModel.applyTransform(ClipTransform.minifyJSON, to: clip.id)
-            }
-        }
-
-        if clip.kind == .url {
-            Divider()
-            Button("清理 URL（去 tracking 参数）") {
-                viewModel.applyTransform(ClipTransform.cleanURL, to: clip.id)
-            }
         }
 
         Divider()
@@ -349,7 +332,7 @@ struct QuickPanelView: View {
                 }
                 .font(.callout)
 
-                Text("若选择「贴回上一应用」，需在设置里授权辅助功能。")
+                Text("若选择「复制后粘贴到上一应用」，需在设置里授权辅助功能。")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)

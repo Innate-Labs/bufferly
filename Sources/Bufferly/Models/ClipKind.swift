@@ -89,7 +89,7 @@ enum ClipKind: String, CaseIterable, Identifiable {
         case .json:
             .purple
         case .command:
-            Color(red: 0.34, green: 0.38, blue: 0.46) // 石墨，终端气质
+            Color(red: 0.34, green: 0.38, blue: 0.46)
         case .code:
             .indigo
         case .email:
@@ -97,9 +97,9 @@ enum ClipKind: String, CaseIterable, Identifiable {
         case .image:
             .teal
         case .file:
-            Color(red: 0.55, green: 0.45, blue: 0.32) // 棕色，文件气质
+            Color(red: 0.55, green: 0.45, blue: 0.32)
         case .richText:
-            Color(red: 0.0, green: 0.48, blue: 0.6) // 深青
+            Color(red: 0.0, green: 0.48, blue: 0.6)
         case .secret:
             .orange
         }

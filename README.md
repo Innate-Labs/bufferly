@@ -42,8 +42,8 @@
 - 🖼️ **不止文本** —— 图片、文件、富文本（RTF）都能存、能预览、能原样粘回
 - 🔒 **敏感内容过滤** —— token、密码、`.env` value、API key 命中后脱敏或不入库
 - 📌 **Pin 常用片段** —— 固定到独立分区，随取随用
-- ⚡ **回车粘贴** —— 选中回车写回剪贴板，并自动粘回原前台 App
-- 🛠️ **开发者转换** —— JSON 格式化 / 压缩、URL 清理（去 tracking 参数）
+- ⚡ **Return 执行** —— 可只复制到剪贴板，也可复制后粘贴到上一应用
+- 🛡️ **排除 App** —— 默认不记录 Passwords、Keychain Access、1Password、Bitwarden 等敏感来源
 - 🎨 **原生 macOS 26 体验** —— Apple Liquid Glass、语义色、SF Symbols + Tabler Icons，支持 Light / Dark、Reduce Motion
 
 ## ⌨️ 快捷键
@@ -81,12 +81,21 @@ bash scripts/install-app.sh   # 覆盖安装到 /Applications 并启动
 bash scripts/build-dmg.sh     # 打包 .dmg → .build/Bufferly.dmg
 ```
 
-> **自动粘贴**依赖辅助功能权限：系统设置 → 隐私与安全性 → 辅助功能 → 允许 Bufferly。未授权也能用，内容已写回剪贴板，自己按 `⌘V` 即可。
+> **复制后粘贴到上一应用**依赖辅助功能权限：系统设置 → 隐私与安全性 → 辅助功能 → 允许 Bufferly。未授权也能用，内容已写回剪贴板，自己按 `⌘V` 即可。
+
+### 首次授权和排障
+
+- 如果点击「请求授权」没有弹窗：打开 Bufferly 设置 → 粘贴行为 →「打开系统设置」，在「隐私与安全性 → 辅助功能」里允许 Bufferly。
+- 如果已经授权但仍显示需要授权：先关闭再重新打开辅助功能里的 Bufferly 开关，然后回到 Bufferly 设置点「刷新」。
+- 如果还是不生效：退出 Bufferly，重新从 `/Applications/Bufferly.app` 启动，确认授权的是这个应用路径，而不是 `.build/Bufferly.app`。
+- 没有辅助功能权限时，Return 会退回为只复制到剪贴板，不会丢失内容。
 
 ## 🔒 隐私
 
 - 剪贴板历史**只存本地** SQLite：`~/Library/Application Support/Bufferly/`
 - **不做云同步、不上传任何内容**
+- 设置页会明确显示保留时长、最大历史数量和当前排除的 App
+- 默认排除 Passwords、Keychain Access、1Password、Bitwarden 等敏感 App
 - 敏感内容默认过滤，可选脱敏占位或直接丢弃
 - 链接预览默认**关闭**（开启才联网获取标题/图标）
 
@@ -96,7 +105,7 @@ Swift · SwiftUI · AppKit · [GRDB](https://github.com/groue/GRDB.swift) / SQLi
 
 ## 🗺️ 路线图
 
-已完成核心剪贴板能力 + 图片/文件/富文本 + 模糊搜索。下一步是 AI 差异化楔子（MCP server、上下文打包、本地 LLM 转换）。详见 **[ROADMAP.md](ROADMAP.md)**。
+已完成核心剪贴板能力 + 图片/文件/富文本 + 模糊搜索。下一步重点是隐私控制、安装体验、可靠性和高频交互手感。详见 **[ROADMAP.md](ROADMAP.md)**。
 
 ## 🤝 贡献
 

@@ -210,32 +210,46 @@ Footer 只放辅助信息。
 
 分组：
 
-1. General
-   - Launch at login
-   - Hide after paste
-   - Max history count
+1. 信任与存储
+   - 本地存储状态
+   - 联网行为状态
+   - 历史保留策略
+   - 排除 App 数量
 
-2. Shortcuts
+2. 快捷键
    - Show Bufferly
    - Pin selected clip
    - Delete selected clip
    - Paste as plain text
 
-3. Privacy
+3. 粘贴行为
+   - Return 默认只复制到剪贴板
+   - 可选“复制后粘贴到上一应用”
+   - 完成后关闭面板
+   - 辅助功能权限状态
+
+4. 隐私
    - Sensitive filtering
    - Store blocked placeholder
-   - Clear history
    - Excluded apps
+   - Link previews opt-in
 
-4. Developer
-   - JSON formatting
-   - URL tracking cleanup
-   - Command detection
-   - Code detection
+5. 历史保留
+   - Retention duration
+   - Max history count
+   - Clear history
+   - Local database path
+
+6. 外观与启动
+   - Launch at login
+   - Follow system Light / Dark
+   - Respect Reduce Transparency / Reduce Motion
 
 视觉：
 
 - 使用系统表单控件。
+- 主体控件与标签跟随系统默认字号；说明文字使用 `footnote` 层级，不使用 `caption2` 做主要信息。
+- 选项型设置优先使用菜单式 Picker，避免长中文挤在 segmented control 里。
 - 使用 sidebar 或 tab settings 取决于实现成本。
 - 不自定义复杂设置组件。
 
@@ -258,12 +272,11 @@ Footer 只放辅助信息。
 
 - `Esc`：关闭。
 - `Arrow Left / Right`：在卡片墙左右移动选中项（`Up / Down` 作为等效别名，见 §16-(a)）。
-- `Enter`：复制并尝试粘贴选中项。
-- `Option + Enter`：只复制到剪贴板，不自动粘贴。
+- `Enter`：按设置执行：默认只复制到剪贴板；启用后复制并粘贴到上一应用。
+- `Option + Enter`：只复制到剪贴板，不粘贴到上一应用。
 - `Command + Enter`：粘贴为纯文本。
 - `Command + P`：Pin / Unpin。
 - `Command + Delete`：删除。
-- `Command + K`：打开动作菜单。
 - `Command + ,`：打开设置。
 
 ### 6.3 鼠标操作
@@ -279,8 +292,6 @@ Footer 只放辅助信息。
 - Copy
 - Paste as Plain Text
 - Pin / Unpin
-- Format JSON
-- Clean URL
 - Delete
 
 ## 7. 内容预览规则
@@ -294,13 +305,13 @@ Footer 只放辅助信息。
 
 - 主预览显示 domain + path。
 - 次要信息显示完整 URL 或标题，后续可抓取。
-- 动作：Clean URL。
+- 不提供 URL 清理等转换动作，避免把产品变成开发者转换工具。
 
 ### 7.3 JSON
 
 - 合法 JSON 显示 `{}` icon。
 - 预览显示第一层 key 或压缩后的前缀。
-- 动作：Format JSON / Minify JSON。
+- 不提供 JSON 格式化 / 压缩等转换动作，保留为历史检索与粘贴工具。
 
 ### 7.4 Command
 
@@ -401,7 +412,7 @@ No matching clips
 
 ### 11.3 权限缺失
 
-如果自动粘贴需要 Accessibility 权限：
+如果“复制后粘贴到上一应用”需要 Accessibility 权限：
 
 - 用系统风格提示。
 - 清楚说明只需要权限来把选中内容粘贴回前台 App。
@@ -461,6 +472,7 @@ MVP UI 验收：
 - Light / Dark 都可读。
 - 长文本不会撑乱布局。
 - Secret 内容不会泄露明文。
+- 设置页能明确说明本地存储、不上传、保留多久、哪些 App 不记录。
 - 设置页符合 macOS 设置习惯。
 - 没有大面积渐变、营销式 hero、装饰性插画。
 
@@ -554,3 +566,22 @@ MVP UI 验收：
 
 - 用户实际使用中认为“默认选中的卡”会制造不必要的解释成本；放在最前面已经代表最新信息。
 - 投影和默认选中态会增加解释成本；hover 放大曾导致文字发糊，高频工具应优先稳定、清楚、快速。
+
+### (d) v0.5：信任中心、隐私读取与卡头对比
+
+日期：2026-07-01
+决策人：项目所有者。
+
+**改了什么**
+
+- 设置页信息架构改为信任与存储、快捷键、粘贴行为、隐私、历史保留、外观与启动。
+- 设置页必须明确展示：本地存储、不上传、保留多久、哪些 App 不记录。
+- 用户可设置历史保留时长；未固定内容按时间过期，已固定内容不按时间自动删除。
+- 默认排除 Passwords、Keychain Access、1Password、Bitwarden 等敏感来源，并提供恢复建议列表。
+- 剪贴板监听先检查 pasteboard 类型 / 元数据 / transient 或 concealed 标记，再读取真实内容。
+- 卡片彩色头部继续保留上一版系统纯色，不再额外压暗；类型色只负责扫读，不承载可读长文本。
+
+**为什么改**
+
+- 剪贴板工具的核心信任来自“我知道它记录什么、保存多久、哪些地方不会记录”。
+- macOS 新 pasteboard 隐私机制鼓励先检测模式和元数据，减少不必要的内容读取与系统提醒。

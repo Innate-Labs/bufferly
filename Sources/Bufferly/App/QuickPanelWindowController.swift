@@ -8,6 +8,14 @@ final class QuickPanelWindowController: NSWindowController, NSWindowDelegate {
     private var visibilityAnimationID = UUID()
     private var isHiding = false
 
+    private enum VisibilityAnimation {
+        static let showOffsetY: CGFloat = 36
+        static let hideOffsetY: CGFloat = 30
+        static let showInitialAlpha: CGFloat = 0.35
+        static let showDuration: TimeInterval = 0.24
+        static let hideDuration: TimeInterval = 0.17
+    }
+
     var isPanelVisible: Bool {
         window?.isVisible == true && !isHiding
     }
@@ -93,9 +101,9 @@ final class QuickPanelWindowController: NSWindowController, NSWindowDelegate {
 
         if shouldAnimate {
             var startFrame = finalFrame
-            startFrame.origin.y -= 6
+            startFrame.origin.y -= VisibilityAnimation.showOffsetY
             window.setFrame(startFrame, display: false)
-            window.alphaValue = 0
+            window.alphaValue = VisibilityAnimation.showInitialAlpha
         } else {
             window.alphaValue = 1
         }
@@ -105,10 +113,10 @@ final class QuickPanelWindowController: NSWindowController, NSWindowDelegate {
         NSApp.activate(ignoringOtherApps: true)
 
         if shouldAnimate {
-            window.alphaValue = 0
+            window.alphaValue = VisibilityAnimation.showInitialAlpha
             NSAnimationContext.runAnimationGroup { context in
-                context.duration = 0.12
-                context.timingFunction = CAMediaTimingFunction(controlPoints: 0.23, 1, 0.32, 1)
+                context.duration = VisibilityAnimation.showDuration
+                context.timingFunction = CAMediaTimingFunction(controlPoints: 0.16, 1, 0.3, 1)
                 window.animator().alphaValue = 1
                 window.animator().setFrame(finalFrame, display: true)
             } completionHandler: { [weak self, weak window] in
@@ -149,11 +157,11 @@ final class QuickPanelWindowController: NSWindowController, NSWindowDelegate {
         }
 
         var finalFrame = window.frame
-        finalFrame.origin.y -= 6
+        finalFrame.origin.y -= VisibilityAnimation.hideOffsetY
 
         NSAnimationContext.runAnimationGroup { context in
-            context.duration = 0.09
-            context.timingFunction = CAMediaTimingFunction(controlPoints: 0.23, 1, 0.32, 1)
+            context.duration = VisibilityAnimation.hideDuration
+            context.timingFunction = CAMediaTimingFunction(controlPoints: 0.4, 0, 1, 1)
             window.animator().alphaValue = 0
             window.animator().setFrame(finalFrame, display: true)
         } completionHandler: { [weak self, weak window] in

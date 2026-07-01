@@ -53,7 +53,10 @@ final class QuickPanelViewModel: ObservableObject {
 
     init(
         pasteboard: NSPasteboard = .general,
-        clipStore: ClipStore? = try? ClipStore(maxHistoryCount: AppSettings.shared.maxHistoryCount)
+        clipStore: ClipStore? = try? ClipStore(
+            maxHistoryCount: AppSettings.shared.maxHistoryCount,
+            historyRetentionDays: AppSettings.shared.historyRetention.days
+        )
     ) {
         self.pasteboard = pasteboard
         self.clipStore = clipStore
@@ -66,6 +69,16 @@ final class QuickPanelViewModel: ObservableObject {
             let keepPinned = (notification.userInfo?["keepPinned"] as? Bool) ?? true
             Task { @MainActor in
                 self?.clearHistory(keepPinned: keepPinned)
+            }
+        }
+
+        NotificationCenter.default.addObserver(
+            forName: .historyPolicyDidChange,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.applyHistoryPolicy()
             }
         }
     }
@@ -256,27 +269,6 @@ final class QuickPanelViewModel: ObservableObject {
         register(clip, blob: rtf)
     }
 
-    /// 对选中条目套用一个转换（JSON 格式化/压缩、URL 清理），结果写回剪贴板并作为新条目。
-    /// 返回是否成功（内容不适用该转换时返回 false）。
-    @discardableResult
-    func applyTransform(_ transform: (String) -> String?, to clipID: ClipItem.ID) -> Bool {
-        guard
-            let clip = clips.first(where: { $0.id == clipID }),
-            !clip.isSensitive,
-            !clip.kind.isAttachment,
-            let result = transform(clip.content),
-            let transformed = ClipClassifier.makeClip(from: result, source: clip.source)
-        else {
-            return false
-        }
-
-        pasteboard.clearContents()
-        pasteboard.setString(result, forType: .string)
-        clipboardMonitor.syncToCurrentChangeCount()
-        register(transformed)
-        return true
-    }
-
     /// 去重后插入到列表头并持久化，同时把选中移到它。`blob` 为附件型的二进制数据，
     /// 仅在确为新条目时写盘（命中去重则复用已有附件，避免写孤儿文件）。
     private func register(_ clip: ClipItem, blob: Data? = nil) {
@@ -300,7 +292,7 @@ final class QuickPanelViewModel: ObservableObject {
 
         clips.insert(newClip, at: 0)
 
-        let locallyPruned = pruneInMemoryIfNeeded()
+        let locallyPruned = pruneInMemoryForHistoryPolicy()
         if let persistedPruned = persist(newClip) {
             deleteAttachmentBlobs(for: locallyPruned + persistedPruned)
         }
@@ -482,6 +474,27 @@ final class QuickPanelViewModel: ObservableObject {
         }
     }
 
+    private func applyHistoryPolicy() {
+        guard let clipStore else {
+            return
+        }
+
+        let locallyPruned = pruneInMemoryForHistoryPolicy()
+
+        do {
+            let persistedPruned = try clipStore.updateHistoryPolicy(
+                maxHistoryCount: AppSettings.shared.maxHistoryCount,
+                historyRetentionDays: AppSettings.shared.historyRetention.days
+            )
+            deleteAttachmentBlobs(for: locallyPruned + persistedPruned)
+        } catch {
+            print("Failed to apply history policy: \(error)")
+        }
+
+        selectedID = filteredClips.first?.id
+        scrollTarget = selectedID
+    }
+
     private func pruneOrphanedBlobs() {
         guard let clipStore else {
             return
@@ -495,11 +508,30 @@ final class QuickPanelViewModel: ObservableObject {
         }
     }
 
-    private func pruneInMemoryIfNeeded() -> [ClipItem] {
+    private func pruneInMemoryForHistoryPolicy() -> [ClipItem] {
+        var removed: [ClipItem] = []
+
+        if
+            let retentionDays = AppSettings.shared.historyRetention.days,
+            retentionDays > 0,
+            let cutoffDate = Calendar.current.date(byAdding: .day, value: -retentionDays, to: Date())
+        {
+            let expiredIDs = Set(
+                clips
+                    .filter { !$0.isPinned && $0.updatedAt < cutoffDate }
+                    .map(\.id)
+            )
+
+            if !expiredIDs.isEmpty {
+                removed.append(contentsOf: clips.filter { expiredIDs.contains($0.id) })
+                clips.removeAll { expiredIDs.contains($0.id) }
+            }
+        }
+
         let overflow = clips.count - maxHistoryCount
 
         guard overflow > 0 else {
-            return []
+            return removed
         }
 
         let removable = clips
@@ -508,12 +540,13 @@ final class QuickPanelViewModel: ObservableObject {
             .prefix(overflow)
 
         guard !removable.isEmpty else {
-            return []
+            return removed
         }
 
         let removableIDs = Set(removable.map(\.id))
         clips.removeAll { removableIDs.contains($0.id) }
-        return Array(removable)
+        removed.append(contentsOf: removable)
+        return removed
     }
 
     private func pastePlainText(_ clip: ClipItem) -> Bool {

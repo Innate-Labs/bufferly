@@ -8,6 +8,7 @@ extension Notification.Name {
     static let quickPanelDidShow = Notification.Name("quickPanelDidShow")
     static let hotKeyPresetDidChange = Notification.Name("hotKeyPresetDidChange")
     static let clearHistoryRequested = Notification.Name("clearHistoryRequested")
+    static let historyPolicyDidChange = Notification.Name("historyPolicyDidChange")
 }
 
 enum QuickPanelStatusKind: String {

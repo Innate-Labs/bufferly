@@ -16,27 +16,64 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
-            pasteSection
-            generalSection
+            trustSummarySection
+            shortcutsSection
+            pasteBehaviorSection
             privacySection
-            dataSection
+            historySection
+            appearanceSection
         }
         .formStyle(.grouped)
         .padding(20)
-        .frame(width: 580, height: 540)
+        .frame(width: 620, height: 700)
         .onAppear {
             eventPostingPermission.refresh()
         }
     }
 
-    // MARK: - 通用
+    // MARK: - 信任摘要
 
-    private var generalSection: some View {
-        Section("通用") {
-            settingRow("登录 macOS 后自动启动 Bufferly 并常驻后台。") {
-                Toggle("开机自动启动", isOn: $settings.launchAtLogin)
-            }
+    private var trustSummarySection: some View {
+        Section("信任与存储") {
+            statusRow(
+                title: "存储范围",
+                value: "仅本机",
+                systemImage: "internaldrive.fill",
+                tint: .green
+            )
 
+            statusRow(
+                title: "联网行为",
+                value: settings.linkPreviewsEnabled ? "链接预览" : "不联网",
+                systemImage: settings.linkPreviewsEnabled ? "globe" : "wifi.slash",
+                tint: settings.linkPreviewsEnabled ? .orange : .green
+            )
+
+            statusRow(
+                title: "历史保留",
+                value: "\(settings.historyRetention.displayName) / \(settings.maxHistoryCount) 条",
+                systemImage: "clock.arrow.circlepath",
+                tint: .secondary
+            )
+
+            statusRow(
+                title: "不记录 App",
+                value: "\(settings.excludedBundleIDs.count) 个",
+                systemImage: "eye.slash.fill",
+                tint: .green
+            )
+
+            Text("剪贴板历史保存在本机 SQLite 数据库；Bufferly 不做云同步，不把内容上传到第三方服务。链接预览关闭时，复制 URL 也不会联网抓取标题或图标。")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    // MARK: - 快捷键
+
+    private var shortcutsSection: some View {
+        Section("快捷键") {
             settingRow("在任意 App 里按这个组合，呼出或收起 Bufferly 面板。") {
                 Picker("呼出 / 隐藏 Bufferly", selection: $settings.hotKeyPreset) {
                     ForEach(HotKeyPreset.allCases) { preset in
@@ -50,19 +87,19 @@ struct SettingsView: View {
                     "双击修饰键需在「系统设置 → 隐私与安全性 → 辅助功能」中允许 Bufferly，否则不会触发。",
                     systemImage: "exclamationmark.triangle.fill"
                 )
-                .font(.caption)
+                .font(.footnote)
                 .foregroundStyle(.orange)
             }
 
             if let error = settings.hotKeyRegistrationError {
                 Label(error, systemImage: "exclamationmark.triangle.fill")
-                    .font(.caption)
+                    .font(.footnote)
                     .foregroundStyle(.orange)
             }
 
             LabeledContent("面板内") {
                 Text("←→ 选择 · Return 粘贴 · ⌥Return 仅复制 · ⌘Return 纯文本 · ⌘P 固定 · ⌘⌫ 删除")
-                    .font(.caption)
+                    .font(.footnote)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.trailing)
             }
@@ -72,25 +109,25 @@ struct SettingsView: View {
     /// 设置项 + 下方一行说明的统一排版。
     @ViewBuilder
     private func settingRow<Control: View>(_ caption: String, @ViewBuilder control: () -> Control) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 5) {
             control()
             Text(caption)
-                .font(.caption)
+                .font(.footnote)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
     }
 
-    // MARK: - 粘贴
+    // MARK: - 粘贴行为
 
-    private var pasteSection: some View {
-        Section("粘贴") {
-            settingRow("“只复制”会把内容放进剪贴板；“贴回上一应用”会额外回到刚才的 App 并模拟一次 ⌘V。") {
+    private var pasteBehaviorSection: some View {
+        Section("粘贴行为") {
+            settingRow("“只复制到剪贴板”只更新系统剪贴板；“复制后粘贴到上一应用”会回到刚才的 App 并模拟一次 ⌘V。") {
                 Picker("按 Return 后", selection: $settings.autoPasteAfterSelection) {
-                    Text("只复制").tag(false)
-                    Text("贴回上一应用").tag(true)
+                    Text("只复制到剪贴板").tag(false)
+                    Text("复制后粘贴到上一应用").tag(true)
                 }
-                .pickerStyle(.segmented)
+                .pickerStyle(.menu)
             }
 
             settingRow("复制或粘贴完成后自动收起面板，回到你刚才的窗口。") {
@@ -100,14 +137,14 @@ struct SettingsView: View {
             pasteBackStatusRow
 
             if settings.autoPasteAfterSelection && !eventPostingPermission.isGranted {
-                Label("当前会先复制到剪贴板；授权后才会自动贴回上一应用。", systemImage: "info.circle")
-                    .font(.caption)
+                Label("当前会先复制到剪贴板；授权后才会粘贴到上一应用。", systemImage: "info.circle")
+                    .font(.footnote)
                     .foregroundStyle(.secondary)
             }
 
             if let permissionRequestMessage, !eventPostingPermission.isGranted {
                 Label(permissionRequestMessage, systemImage: "arrow.up.forward.app")
-                    .font(.caption)
+                    .font(.footnote)
                     .foregroundStyle(.secondary)
             }
 
@@ -139,7 +176,7 @@ struct SettingsView: View {
 
     private var pasteBackStatusRow: some View {
         VStack(alignment: .leading, spacing: 5) {
-            LabeledContent("贴回上一应用权限") {
+            LabeledContent("粘贴到上一应用权限") {
                 Label(
                     pasteBackPermissionTitle,
                     systemImage: pasteBackPermissionSymbol
@@ -148,7 +185,7 @@ struct SettingsView: View {
             }
 
             Text(pasteBackPermissionCaption)
-                .font(.caption)
+                .font(.footnote)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -171,7 +208,7 @@ struct SettingsView: View {
             return "Return 会复制内容，并尝试回到刚才的 App 自动按 ⌘V。"
         }
 
-        return "未授权时 Return 会退回为只复制；授权后才会贴回上一应用。"
+        return "未授权时 Return 会退回为只复制；授权后才会粘贴到上一应用。"
     }
 
     private var pasteBackPermissionSymbol: String {
@@ -194,8 +231,6 @@ struct SettingsView: View {
 
     private var privacySection: some View {
         Section("隐私") {
-            privacySummaryRow
-
             settingRow("自动识别 token、密码、API key、.env 值等敏感内容，避免明文存进历史。") {
                 Toggle("敏感内容过滤", isOn: $settings.sensitiveFiltering)
             }
@@ -213,59 +248,17 @@ struct SettingsView: View {
         }
     }
 
-    private var privacySummaryRow: some View {
-        HStack(spacing: 12) {
-            privacyStatusItem(
-                title: "本地历史",
-                value: "仅本机",
-                systemImage: "lock.shield.fill",
-                tint: .green
-            )
-
-            privacyStatusItem(
-                title: "敏感过滤",
-                value: settings.sensitiveFiltering ? "已开启" : "已关闭",
-                systemImage: settings.sensitiveFiltering ? "checkmark.shield.fill" : "shield.slash",
-                tint: settings.sensitiveFiltering ? .green : .orange
-            )
-
-            privacyStatusItem(
-                title: "链接预览",
-                value: settings.linkPreviewsEnabled ? "会联网" : "离线",
-                systemImage: settings.linkPreviewsEnabled ? "globe" : "wifi.slash",
-                tint: settings.linkPreviewsEnabled ? .orange : .secondary
-            )
-        }
-    }
-
-    private func privacyStatusItem(
+    private func statusRow(
         title: String,
         value: String,
         systemImage: String,
         tint: Color
     ) -> some View {
-        HStack(spacing: 7) {
-            Image(systemName: systemImage)
-                .font(.caption.weight(.semibold))
+        LabeledContent(title) {
+            Label(value, systemImage: systemImage)
                 .symbolRenderingMode(.hierarchical)
-                .foregroundStyle(tint)
-                .frame(width: 18)
-
-            VStack(alignment: .leading, spacing: 1) {
-                Text(title)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-
-                Text(value)
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-            }
-
-            Spacer(minLength: 0)
+                .foregroundStyle(tint, .secondary)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var excludedAppsRow: some View {
@@ -273,6 +266,9 @@ struct SettingsView: View {
             HStack {
                 Text("排除的 App")
                 Spacer()
+                Button("恢复建议") {
+                    restoreRecommendedExcludedApps()
+                }
                 Menu("添加…") {
                     if addableApps.isEmpty {
                         Text("没有可添加的 App")
@@ -288,19 +284,18 @@ struct SettingsView: View {
             }
 
             Text("从这些 App 里复制的内容不会被 Bufferly 记录（比如密码管理器、银行 App）。")
-                .font(.caption)
+                .font(.footnote)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
             if settings.excludedBundleIDs.isEmpty {
                 Text("当前没有排除任何 App。")
-                    .font(.caption)
+                    .font(.footnote)
                     .foregroundStyle(.tertiary)
             } else {
                 ForEach(settings.excludedBundleIDs, id: \.self) { bundleID in
                     HStack {
                         Text(appName(for: bundleID))
-                            .font(.callout)
                         Spacer()
                         Button {
                             removeExcluded(bundleID)
@@ -316,10 +311,19 @@ struct SettingsView: View {
         }
     }
 
-    // MARK: - 数据
+    // MARK: - 历史保留
 
-    private var dataSection: some View {
-        Section("数据") {
+    private var historySection: some View {
+        Section("历史保留") {
+            settingRow("未固定内容会按这个时间自动过期；已固定内容不会因为时间过期被删除。") {
+                Picker("保留时长", selection: $settings.historyRetention) {
+                    ForEach(HistoryRetention.allCases) { retention in
+                        Text(retention.displayName).tag(retention)
+                    }
+                }
+                .pickerStyle(.menu)
+            }
+
             settingRow("历史超过这个数量时，自动删除最旧的未固定条目。") {
                 Stepper(value: $settings.maxHistoryCount, in: 50...2_000, step: 50) {
                     HStack {
@@ -346,10 +350,26 @@ struct SettingsView: View {
                         } label: {
                             Label("在 Finder 中显示", systemImage: "folder")
                         }
-                        .controlSize(.small)
                         .disabled(ClipStore.databasePath == "Unavailable")
                     }
                 }
+            }
+        }
+    }
+
+    // MARK: - 外观
+
+    private var appearanceSection: some View {
+        Section("外观与启动") {
+            settingRow("登录 macOS 后自动启动 Bufferly 并常驻后台。") {
+                Toggle("开机自动启动", isOn: $settings.launchAtLogin)
+            }
+
+            LabeledContent("界面外观") {
+                Text("跟随系统 Light / Dark、Reduce Transparency 与 Reduce Motion。")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.trailing)
             }
         }
     }
@@ -367,7 +387,7 @@ struct SettingsView: View {
                 }
             }
             Text("「保留固定」只清未固定的条目；「全部清空」连固定的一起删。删除不可恢复。")
-                .font(.caption)
+                .font(.footnote)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -379,6 +399,19 @@ struct SettingsView: View {
         let name: String
         let bundleID: String
     }
+
+    private static let knownAppNames: [String: String] = [
+        "com.apple.keychainaccess": "Keychain Access",
+        "com.apple.Passwords": "Passwords",
+        "com.1password.1password": "1Password",
+        "com.agilebits.onepassword7": "1Password 7",
+        "com.bitwarden.desktop": "Bitwarden",
+        "com.lastpass.LastPass": "LastPass",
+        "com.dashlane.dashlanephonefinal": "Dashlane",
+        "com.nordpass.NordPass": "NordPass",
+        "me.proton.pass": "Proton Pass",
+        "com.roboform.mac": "RoboForm"
+    ]
 
     private var addableApps: [RunningApp] {
         let selfBundleID = Bundle.main.bundleIdentifier
@@ -414,7 +447,7 @@ struct SettingsView: View {
             return name
         }
 
-        return bundleID
+        return Self.knownAppNames[bundleID] ?? bundleID
     }
 
     private func addExcluded(_ bundleID: String) {
@@ -426,6 +459,14 @@ struct SettingsView: View {
 
     private func removeExcluded(_ bundleID: String) {
         settings.excludedBundleIDs.removeAll { $0 == bundleID }
+    }
+
+    private func restoreRecommendedExcludedApps() {
+        var bundleIDs = settings.excludedBundleIDs
+        for bundleID in AppSettings.recommendedExcludedBundleIDs where !bundleIDs.contains(bundleID) {
+            bundleIDs.append(bundleID)
+        }
+        settings.excludedBundleIDs = bundleIDs
     }
 
     private func requestClearHistory(keepPinned: Bool) {
