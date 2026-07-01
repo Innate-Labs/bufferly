@@ -144,30 +144,16 @@ struct ClipCardView: View {
 
             Spacer(minLength: 0)
 
-            Image(systemName: clip.kind.symbolName)
-                .font(.system(size: 13, weight: .semibold))
+            TablerIconView(name: clip.kind.tablerIconName, fallbackSystemName: clip.kind.symbolName)
                 .foregroundStyle(.white)
+                .frame(width: 14, height: 14)
                 .frame(width: 24, height: 24)
                 .background(.white.opacity(0.16), in: Circle())
         }
         .padding(.horizontal, 14)
         .frame(height: 52)
         .frame(maxWidth: .infinity)
-        .background {
-            LinearGradient(
-                colors: [clip.kind.accent, clip.kind.accent.opacity(0.82)],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .overlay(alignment: .top) {
-                LinearGradient(
-                    colors: [.white.opacity(0.22), .clear],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .frame(height: 22)
-            }
-        }
+        .background(clip.kind.accent)
     }
 
     private var content: some View {

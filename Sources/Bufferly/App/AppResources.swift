@@ -1,8 +1,16 @@
 import Foundation
 
 enum AppResources {
-    static func url(forResource name: String, withExtension extensionName: String) -> URL? {
-        if let url = Bundle.main.url(forResource: name, withExtension: extensionName) {
+    static func url(
+        forResource name: String,
+        withExtension extensionName: String,
+        subdirectory: String? = nil
+    ) -> URL? {
+        if let url = Bundle.main.url(
+            forResource: name,
+            withExtension: extensionName,
+            subdirectory: subdirectory
+        ) {
             return url
         }
 
@@ -10,11 +18,15 @@ enum AppResources {
             let resourceBundle = Bundle(
                 url: Bundle.main.bundleURL.appendingPathComponent("Bufferly_Bufferly.bundle", isDirectory: true)
             ),
-            let url = resourceBundle.url(forResource: name, withExtension: extensionName)
+            let url = resourceBundle.url(
+                forResource: name,
+                withExtension: extensionName,
+                subdirectory: subdirectory
+            )
         {
             return url
         }
 
-        return Bundle.module.url(forResource: name, withExtension: extensionName)
+        return Bundle.module.url(forResource: name, withExtension: extensionName, subdirectory: subdirectory)
     }
 }

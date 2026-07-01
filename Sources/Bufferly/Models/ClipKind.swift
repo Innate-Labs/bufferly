@@ -39,6 +39,31 @@ enum ClipKind: String, CaseIterable, Identifiable {
         }
     }
 
+    var tablerIconName: String {
+        switch self {
+        case .text:
+            "align-left"
+        case .url:
+            "link"
+        case .json:
+            "braces"
+        case .command:
+            "terminal-2"
+        case .code:
+            "code"
+        case .email:
+            "mail"
+        case .image:
+            "photo"
+        case .file:
+            "file"
+        case .richText:
+            "file-text"
+        case .secret:
+            "lock"
+        }
+    }
+
     /// 二进制 / 附件型：内容不是纯文本，正文存到 blob，卡片按各自方式渲染。
     var isAttachment: Bool {
         self == .image || self == .file || self == .richText

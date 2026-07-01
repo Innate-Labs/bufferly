@@ -44,7 +44,7 @@
 - 📌 **Pin 常用片段** —— 固定到独立分区，随取随用
 - ⚡ **回车粘贴** —— 选中回车写回剪贴板，并自动粘回原前台 App
 - 🛠️ **开发者转换** —— JSON 格式化 / 压缩、URL 清理（去 tracking 参数）
-- 🎨 **原生 macOS 26 体验** —— Apple Liquid Glass、语义色、SF Symbols，支持 Light / Dark、Reduce Motion
+- 🎨 **原生 macOS 26 体验** —— Apple Liquid Glass、语义色、SF Symbols + Tabler Icons，支持 Light / Dark、Reduce Motion
 
 ## ⌨️ 快捷键
 

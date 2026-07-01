@@ -1,6 +1,7 @@
+import AppKit
 import SwiftUI
 
-/// 「剪贴板 / 已固定」分段切换：药丸在选中项后面平滑滑动。
+/// 「剪贴板 / 已固定」分段切换：外层用官方 Liquid Glass，选中 pill 用实底保证可读。
 ///
 /// 参考 Transitions.dev「Tabs sliding」：药丸用 matchedGeometryEffect 在选中 tab 后面
 /// 滑动（位置 + 宽度一起补间），缓动 = cubic-bezier(0.22, 1, 0.36, 1) / 200ms，
@@ -10,39 +11,40 @@ struct PinboardTabs: View {
 
     @Namespace private var pillNamespace
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     private static let slide = Animation.timingCurve(0.22, 1, 0.36, 1, duration: 0.2)
 
     var body: some View {
-        HStack(spacing: 3) {
-            ForEach(QuickPanelViewModel.Board.allCases) { board in
-                tab(board)
+        GlassEffectContainer(spacing: 3) {
+            HStack(spacing: 3) {
+                ForEach(QuickPanelViewModel.Board.allCases) { board in
+                    tab(board)
+                }
             }
         }
         .padding(3)
-        .background(
+        .background {
             Capsule(style: .continuous)
-                .fill(Color.primary.opacity(0.06))
-        )
+                .fill(Color(nsColor: .windowBackgroundColor).opacity(reduceTransparency ? 0.96 : 0.18))
+        }
+        .glassEffect(reduceTransparency ? .identity : .regular.interactive(), in: Capsule(style: .continuous))
     }
 
     private func tab(_ board: QuickPanelViewModel.Board) -> some View {
         let isSelected = selection == board
 
         return Text(board.rawValue)
-            .font(.callout)
-            .foregroundStyle(isSelected ? Color.primary : Color.secondary)
+            .font(.callout.weight(.medium))
+            .foregroundStyle(isSelected ? Color.primary : Color.secondary.opacity(0.82))
             .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: isSelected)
             .padding(.horizontal, 12)
             .frame(height: 28)
             .background {
                 if isSelected {
                     Capsule(style: .continuous)
-                        .fill(.regularMaterial)
-                        .overlay(
-                            Capsule(style: .continuous)
-                                .strokeBorder(.white.opacity(0.12))
-                        )
+                        .fill(Color(nsColor: .controlBackgroundColor).opacity(0.96))
+                        .shadow(color: .black.opacity(0.10), radius: 3, x: 0, y: 1)
                         .matchedGeometryEffect(id: "pinboardPill", in: pillNamespace)
                 }
             }

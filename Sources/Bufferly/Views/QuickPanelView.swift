@@ -6,6 +6,7 @@ struct QuickPanelView: View {
     @ObservedObject private var appSettings: AppSettings
     @ObservedObject private var eventPostingPermission: EventPostingPermission
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @FocusState private var searchFocused: Bool
     @State private var keyMonitor: Any?
     @State private var showPreview = false
@@ -32,7 +33,7 @@ struct QuickPanelView: View {
         .frame(maxWidth: .infinity)
         .frame(height: QuickPanelView.panelHeight)
         // 外圆角 = 卡片圆角(14) + 卡片内边距(20)，与卡片同心。
-        // 面板用实材质作底，让上面的 Liquid Glass 控件清晰浮起。
+        // 外层板子使用官方 Liquid Glass，前景卡片保持实底保证内容可读。
         .panelBackground(cornerRadius: 34)
         .overlay(alignment: .bottom) {
             if let statusBanner, !showPreview, !showOnboarding {
@@ -133,7 +134,13 @@ struct QuickPanelView: View {
         .frame(maxWidth: 320)
         .frame(height: 32)
         // interactive 玻璃：交互时有真实光感 / lensing 响应（macOS 26 Tahoe）。
-        .glassEffect(.regular.interactive(), in: Capsule())
+        .background {
+            if reduceTransparency {
+                Capsule()
+                    .fill(Color(nsColor: .controlBackgroundColor))
+            }
+        }
+        .glassEffect(reduceTransparency ? .identity : .regular.interactive(), in: Capsule())
     }
 
     private var returnActionTitle: String {
@@ -260,11 +267,13 @@ struct QuickPanelView: View {
     }
 
     private func statusBannerView(_ banner: StatusBanner) -> some View {
-        HStack(spacing: 10) {
+        let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
+
+        return HStack(spacing: 10) {
             ZStack {
                 Circle()
-                    .fill(banner.kind.tint.opacity(0.12))
-                    .frame(width: 22, height: 22)
+                    .fill(banner.kind.tint.opacity(0.14))
+                    .frame(width: 24, height: 24)
 
                 Image(systemName: banner.kind.symbolName)
                     .font(.caption.weight(.semibold))
@@ -278,20 +287,20 @@ struct QuickPanelView: View {
 
             Spacer(minLength: 0)
         }
-        .padding(.leading, 8)
-        .padding(.trailing, 12)
-        .frame(width: 300, height: 38)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 11, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 11, style: .continuous)
-                .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
+        .padding(.leading, 9)
+        .padding(.trailing, 13)
+        .frame(width: 312, height: 42)
+        .background {
+            if reduceTransparency {
+                shape
+                    .fill(Color(nsColor: .windowBackgroundColor))
+            } else {
+                shape
+                    .fill(Color(nsColor: .windowBackgroundColor).opacity(0.16))
+                    .glassEffect(.regular, in: shape)
+            }
         }
-        .overlay(alignment: .leading) {
-            RoundedRectangle(cornerRadius: 2, style: .continuous)
-                .fill(banner.kind.tint.opacity(0.65))
-                .frame(width: 3, height: 20)
-                .padding(.leading, 1)
-        }
+        .shadow(color: .black.opacity(0.12), radius: 8, x: 0, y: 3)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(banner.message)
     }
@@ -374,35 +383,70 @@ struct QuickPanelView: View {
         if let clip = viewModel.selectedClip {
             ZStack {
                 Rectangle()
-                    .fill(.black.opacity(0.32))
+                    .fill(.black.opacity(0.24))
                     .ignoresSafeArea()
                     .onTapGesture { showPreview = false }
 
-                VStack(alignment: .leading, spacing: 10) {
-                    HStack(spacing: 8) {
-                        Image(systemName: clip.kind.symbolName)
-                            .foregroundStyle(clip.kind.accent)
-                        Text(clip.kind.rawValue)
-                            .fontWeight(.semibold)
-                        Text(clip.source)
-                            .foregroundStyle(.secondary)
-                        Spacer()
-                        Text("空格 / Esc 关闭 · Return \(returnActionTitle)")
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
-                    }
-                    .font(.callout)
-
-                    Divider()
-
-                    previewBody(for: clip)
-                }
-                .padding(18)
-                .frame(maxWidth: 560, maxHeight: 300)
-                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-                .padding(20)
+                previewPanel(for: clip)
+                    .padding(20)
             }
         }
+    }
+
+    private func previewPanel(for clip: ClipItem) -> some View {
+        let shellShape = RoundedRectangle(cornerRadius: 22, style: .continuous)
+
+        return VStack(alignment: .leading, spacing: 12) {
+            previewHeader(for: clip)
+            previewContentSurface(for: clip)
+        }
+        .padding(14)
+        .frame(maxWidth: 560, maxHeight: 306)
+        .background {
+            if reduceTransparency {
+                shellShape
+                    .fill(Color(nsColor: .windowBackgroundColor))
+            } else {
+                shellShape
+                    .fill(Color(nsColor: .windowBackgroundColor).opacity(0.14))
+                    .glassEffect(.regular, in: shellShape)
+            }
+        }
+        .shadow(color: .black.opacity(0.16), radius: 16, x: 0, y: 6)
+    }
+
+    private func previewHeader(for clip: ClipItem) -> some View {
+        HStack(spacing: 8) {
+            TablerIconView(name: clip.kind.tablerIconName, fallbackSystemName: clip.kind.symbolName)
+                .foregroundStyle(clip.kind.accent)
+                .frame(width: 15, height: 15)
+
+            Text(clip.kind.rawValue)
+                .fontWeight(.semibold)
+
+            Text(clip.source)
+                .foregroundStyle(.secondary)
+
+            Spacer()
+
+            Text("空格 / Esc 关闭 · Return \(returnActionTitle)")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+        }
+        .font(.callout)
+        .padding(.horizontal, 4)
+    }
+
+    private func previewContentSurface(for clip: ClipItem) -> some View {
+        let contentShape = RoundedRectangle(cornerRadius: 12, style: .continuous)
+
+        return previewBody(for: clip)
+            .padding(12)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .background {
+                contentShape
+                    .fill(Color(nsColor: .textBackgroundColor).opacity(0.94))
+            }
     }
 
     @ViewBuilder

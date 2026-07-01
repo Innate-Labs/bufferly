@@ -135,7 +135,7 @@ Clip Card 是卡片墙的信息单元，富预览、可扫读。
 
 结构：
 
-- 头部（高约 52 pt）：按类型着色（见 §9 类型色），显示类型名（白色粗体）+ 相对时间 + 类型图标。
+- 头部（高约 52 pt）：按类型使用纯色背景（见 §9 类型色），显示类型名（白色粗体）+ 相对时间 + 类型图标。
 - 正文（白色）：富预览，代码 / JSON / 命令用等宽字体，最多 8 行；底部一行显示来源 App + pin 按钮。
 
 状态：
@@ -161,7 +161,7 @@ Clip Card 是卡片墙的信息单元，富预览、可扫读。
 
 建议：
 
-- 使用 SF Symbols 图标 + 极短文本。
+- 使用 Tabler outline 图标 + 极短文本。
 - Badge 宽度稳定，避免列表抖动。
 - 色彩以系统 secondary/tertiary 为主。
 - 只有 Secret 使用更明确的警示语义，但仍保持克制。
@@ -353,7 +353,7 @@ Footer 只放辅助信息。
 
 类型色（卡片头部，见 §16-(a)）：
 
-- 仅用于卡片彩色头部，正文与列表其余部分仍跟随系统语义色，不扩散成全局品牌色。
+- 仅用于卡片彩色头部，正文与列表其余部分仍跟随系统语义色，不扩散成全局品牌色；头部使用纯色，不叠加渐变或高光。
 - Text：blue / URL：green / JSON：purple / Command：石墨灰 / Code：indigo / Email：pink / Secret：orange。
 - 色彩只负责类型识别，不承载选中态或主要层级。
 
@@ -365,25 +365,16 @@ Dark Mode：
 
 ## 10. 图标
 
-优先使用 SF Symbols。
+系统操作优先使用 SF Symbols；内容类型图标使用 Tabler Icons outline。
 
 建议映射：
 
-- Search：`magnifyingglass`
-- Pin：`pin`
-- URL：`link`
-- JSON：`curlybraces`
-- Command：`terminal`
-- Code：`chevron.left.forwardslash.chevron.right`
-- Email：`envelope`
-- Secret：`lock`
-- Delete：`trash`
-- Settings：`gearshape`
-- Clean URL：`wand.and.stars` 或 `sparkles`
+- 系统操作：Search `magnifyingglass`、Pin `pin`、Delete `trash`、Settings `gearshape`
+- 内容类型：Text `align-left`、URL `link`、JSON `braces`、Command `terminal-2`、Code `code`、Email `mail`、Image `photo`、File `file`、Rich Text `file-text`、Secret `lock`
 
 图标规则：
 
-- 不自绘 SVG。
+- 不手绘临时 SVG；Tabler 图标从官方 SVG 源导入并随包离线分发。
 - 不使用彩色插画图标。
 - 工具按钮必须有 accessibility label。
 
@@ -523,19 +514,22 @@ MVP UI 验收：
 **改了什么**
 
 - 部署目标提到 `macOS 26`，作为完整的 macOS 26 app（`Package.swift` + 打包 `LSMinimumSystemVersion`）。
-- 顶部控件接入官方 Liquid Glass：搜索框用 `.glassEffect(in: Capsule())`，分段控件用系统 `.pickerStyle(.segmented)`（系统自动套玻璃）。
-- 面板底层保持 `.thinMaterial` 实底（不是玻璃），玻璃只留给浮在内容之上的控件层——遵守官方「玻璃用于控件层、内容层不用玻璃、不堆叠玻璃」。
+- 顶部控件接入官方 Liquid Glass：搜索框用 `.glassEffect(in: Capsule())`；分段控件保留原生胶囊形态，选中 pill 使用实底系统色和极轻小投影，不画描边。
+- 面板底层使用官方 `.glassEffect(.regular, in:)` 形成 Liquid Glass 背板；内容卡片保持实底，不把正文区域玻璃化。
 - 顶部控件改用 SF Symbols + 原生组件，去掉自绘 PNG 图标封装（删除 RemixIcon / NativeSearchField 等）。
 - 搜索框定为常驻玻璃药丸（曾尝试「默认收起、点击展开」，因收起态不好看回退；见对话）。
 - 去掉右上角关闭按钮：呼出式浮层靠 Esc / 点外部 / 再按快捷键关闭，不放关闭按钮（Spotlight / Raycast 范式）。
 - 去掉顶栏下的硬 `Divider`：Tahoe 浮动工具栏让内容从下方透出，不用硬分割线。
 - 顶部控件内边距与卡片墙对齐为 20pt，符合同心圆 `外圆34 = 内圆 + 边距`，分段控件不再顶到 34pt 外圆弧；搜索药丸与分段控件用 `.controlSize(.large)` 配齐高度读成一排。
 - 卡片选中描边 3pt → 2pt，更贴近 Apple 选中惯例；后续已被 v0.4 的「无可见选中态」取代。
+- 状态 Toast 使用官方 Liquid Glass 小浮层，不画描边；语义色只放在图标上，避免打扰复制流程。
+- Quick Look 预览使用官方 Liquid Glass 外壳，正文内容区保持实底，避免长文本和代码被玻璃材质干扰。
+- 开启「降低透明度」时，Liquid Glass 表面回退为实底系统色，避免可读性依赖透明材质。
 
 **为什么改**
 
 - 项目所有者要求「完全按照 Apple 范式」，且开发机已是 macOS 26（SDK / 部署目标可用真正的 Liquid Glass）。
-- 对照官方 Liquid Glass 文档审查：架构层（玻璃只给控件层、内容卡片实底、不堆叠玻璃）本就合规，本次主要修掉「不够 Tahoe」的细节（硬分割线、控件尺寸/对齐、字号过大、冗余关闭按钮）。
+- 对照官方 Liquid Glass 文档审查：主面板背板和顶部控件使用官方 Liquid Glass，内容卡片保持实底；本次主要修掉「不够 Tahoe」的细节（硬分割线、控件尺寸/对齐、字号过大、冗余关闭按钮）。
 
 **仍然保留的原则（未被本次推翻）**
 

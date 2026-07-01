@@ -14,7 +14,7 @@ rm -rf "$APP_DIR"
 mkdir -p "$MACOS_DIR" "$RESOURCES_DIR"
 
 cp "$BUILD_DIR/Bufferly" "$MACOS_DIR/Bufferly"
-cp "$ROOT_DIR/Sources/Bufferly/Resources/"* "$RESOURCES_DIR/"
+cp -R "$ROOT_DIR/Sources/Bufferly/Resources/"* "$RESOURCES_DIR/"
 
 cat > "$CONTENTS_DIR/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
