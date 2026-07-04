@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Bufferly 是面向开发者和 AI 工作流的本地优先 macOS 剪贴板工作台，帮助你找回命令、复用 Prompt，并默认过滤敏感内容。"
+    />
+    <meta property="og:title" content="Bufferly - 本地优先的 macOS 剪贴板工作台" />
+    <meta
+      property="og:description"
+      content="为开发者和 AI 重度用户打造：快速找回复制历史，固定常用片段，敏感内容进入历史前先过滤。"
+    />
+    <meta property="og:type" content="website" />
+    <title>Bufferly - 本地优先的 macOS 剪贴板工作台</title>
+    <script type="module">
+      if (import.meta.hot?.on) {
+        import.meta.hot.on('vite:error', (error) => {
+          if (error.err) {
+            console.error(
+              [error.err.message, error.err.frame].filter(Boolean).join('\n'),
+            )
+          }
+        })
+      }
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
