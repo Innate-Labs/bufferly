@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// 面板背景使用官方 Liquid Glass；内容卡片仍保持实底，保证剪贴板内容可读。
+/// 面板背景使用轻量模糊和半透明底色；内容卡片仍保持实底，保证剪贴板内容可读。
 struct PanelBackground: ViewModifier {
     var cornerRadius: CGFloat
 
@@ -15,9 +15,12 @@ struct PanelBackground: ViewModifier {
                     shape
                         .fill(Color(nsColor: .windowBackgroundColor))
                 } else {
-                    shape
-                        .fill(.regularMaterial)
-                        .glassEffect(.regular, in: shape)
+                    ZStack {
+                        shape
+                            .fill(.ultraThinMaterial)
+                        shape
+                            .fill(Color(nsColor: .windowBackgroundColor).opacity(0.64))
+                    }
                 }
             }
             .overlay {

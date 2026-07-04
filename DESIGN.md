@@ -81,7 +81,7 @@ Quick Panel 是 Bufferly 的核心界面，按全局快捷键呼出。
 
 视觉：
 
-- 背景使用 macOS material。
+- 背景使用轻量 material 模糊叠加半透明系统底色，不使用大面积 `.glassEffect` 强模糊。
 - 整体圆角约 20 pt，贴近系统浮层。
 - 卡片为主角：彩色头部 + 白色正文，圆角 14 pt，无投影；不绘制默认选中态，最新信息由卡片顺序表达。
 - 层级由位置、材质和边界表达，不使用投影。
@@ -365,7 +365,7 @@ Footer 只放辅助信息。
 类型色（卡片头部，见 §16-(a)）：
 
 - 仅用于卡片彩色头部，正文与列表其余部分仍跟随系统语义色，不扩散成全局品牌色；头部使用纯色，不叠加渐变或高光。
-- Text：blue / URL：green / JSON：purple / Command：石墨灰 / Code：indigo / Email：pink / Secret：orange。
+- Text：#0088FF / URL：#34C758 / JSON：#CB30E0 / Command：石墨灰 / Code：#CB30E0 / Email：pink / Image：#FF383C / Secret：orange。
 - 色彩只负责类型识别，不承载选中态或主要层级。
 
 Dark Mode：
@@ -527,7 +527,7 @@ MVP UI 验收：
 
 - 部署目标提到 `macOS 26`，作为完整的 macOS 26 app（`Package.swift` + 打包 `LSMinimumSystemVersion`）。
 - 顶部控件接入官方 Liquid Glass：搜索框用 `.glassEffect(in: Capsule())`；分段控件保留原生胶囊形态，选中 pill 使用实底系统色和极轻小投影，不画描边。
-- 面板底层使用官方 `.glassEffect(.regular, in:)` 形成 Liquid Glass 背板；内容卡片保持实底，不把正文区域玻璃化。
+- 面板底层曾使用官方 `.glassEffect(.regular, in:)` 形成 Liquid Glass 背板；v0.7 起主面板改为轻量 material 模糊叠加半透明系统底色，内容卡片保持实底，不把正文区域玻璃化。
 - 顶部控件改用 SF Symbols + 原生组件，去掉自绘 PNG 图标封装（删除 RemixIcon / NativeSearchField 等）。
 - 搜索框定为常驻玻璃药丸（曾尝试「默认收起、点击展开」，因收起态不好看回退；见对话）。
 - 去掉右上角关闭按钮：呼出式浮层靠 Esc / 点外部 / 再按快捷键关闭，不放关闭按钮（Spotlight / Raycast 范式）。
@@ -585,3 +585,30 @@ MVP UI 验收：
 
 - 剪贴板工具的核心信任来自“我知道它记录什么、保存多久、哪些地方不会记录”。
 - macOS 新 pasteboard 隐私机制鼓励先检测模式和元数据，减少不必要的内容读取与系统提醒。
+
+### (e) v0.6：复制卡片参考 Paste 预览层级
+
+日期：2026-07-04
+决策人：项目所有者。
+
+**改了什么**
+
+- 类型色调整为：Text `#0088FF`、URL `#34C758`、Image `#FF383C`、Code `#CB30E0`；JSON 同 Code 使用 `#CB30E0`，Command / Email / Secret 保持原有区分。
+- 所有文本型内容统一使用正文预览和底部淡出，减少每种文字内容一套版式带来的扫读成本。
+- 图片卡从完整 letterbox 预览改为正文区域 full-bleed 填充预览，并在底部叠加低位渐隐和来源。
+
+**仍然保留的原则**
+
+- 卡片宽高、头部高度和头部右侧类型图标尺寸不变。
+- 不恢复卡片默认选中态，不给真实产品卡片加大投影；层级仍主要由面板材质、卡片边界和内容预览表达。
+- 渐隐只在底部低位收尾，不能过早遮住正文或图片主体。
+
+### (f) v0.7：主面板背板透明度校准
+
+日期：2026-07-05
+决策人：项目所有者。
+
+**改了什么**
+
+- 主面板背板使用 `.ultraThinMaterial` 提供轻量模糊，并叠加半透明系统底色，当前透明度为 `0.64`，避免读成全透明。
+- 大面积背板不叠加 `.glassEffect`；顶部控件等小面积交互控件仍可使用系统玻璃效果。

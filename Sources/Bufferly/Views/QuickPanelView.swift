@@ -33,7 +33,7 @@ struct QuickPanelView: View {
         .frame(maxWidth: .infinity)
         .frame(height: QuickPanelView.panelHeight)
         // 外圆角 = 卡片圆角(14) + 卡片内边距(20)，与卡片同心。
-        // 外层板子使用官方 Liquid Glass，前景卡片保持实底保证内容可读。
+        // 外层板子只使用低透明底色，前景卡片保持实底保证内容可读。
         .panelBackground(cornerRadius: 34)
         .overlay(alignment: .bottom) {
             if let statusBanner, !showPreview, !showOnboarding {

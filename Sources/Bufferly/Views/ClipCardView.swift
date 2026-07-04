@@ -157,20 +157,38 @@ struct ClipCardView: View {
     }
 
     private var content: some View {
+        Group {
+            if clip.kind == .image, !clip.isSensitive {
+                imageContent
+            } else {
+                standardContent
+            }
+        }
+        .onAppear {
+            loadAttachmentIfNeeded()
+            loadSourceIcon()
+        }
+    }
+
+    private var standardContent: some View {
         VStack(alignment: .leading, spacing: 0) {
             bodyContent
-
-            Spacer(minLength: 8)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
 
             footer
         }
         .padding(14)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .onAppear {
-            loadAttachmentIfNeeded()
-            loadSourceIcon()
-            loadLinkPreviewIfNeeded()
+    }
+
+    private var imageContent: some View {
+        ZStack(alignment: .bottom) {
+            imageCanvas
+
+            imageOverlay
         }
+        .frame(width: Self.width, height: Self.height - 52)
+        .clipped()
     }
 
     /// 抓取链接预览：仅当是 URL、用户开启了链接预览、且尚未加载时。命中缓存直接用，否则联网。
@@ -221,38 +239,55 @@ struct ClipCardView: View {
     private var bodyContent: some View {
         if clip.isSensitive {
             sensitiveBody
+        } else if clip.kind == .image {
+            imageCanvas
+        } else if clip.kind == .richText, let loadedRichText {
+            richTextPreviewBody(loadedRichText)
         } else {
-            switch clip.kind {
-            case .image:
-                imageBody
-            case .file:
-                fileBody
-            case .richText:
-                richTextBody
-            case .url:
-                urlBody
-            case .json:
-                jsonBody
-            case .command:
-                commandBody
-            case .code:
-                codeBody
-            case .email:
-                emailBody
-            default:
-                textBody
-            }
+            textBody
         }
     }
 
     private var textBody: some View {
-        Text(clip.content)
-            .font(isMonospaced ? .system(.body, design: .monospaced) : .body)
-            .foregroundStyle(.primary)
-            .lineSpacing(3)
-            .lineLimit(9)
-            .truncationMode(.tail)
-            .frame(maxWidth: .infinity, alignment: .leading)
+        textPreviewBody(
+            Text(textPreviewText),
+            font: isMonospaced ? .system(.body, design: .monospaced) : .body
+        )
+    }
+
+    private func richTextPreviewBody(_ text: AttributedString) -> some View {
+        textPreviewBody(Text(text), font: .body)
+    }
+
+    private func textPreviewBody(_ text: Text, font: Font) -> some View {
+        fadingText(text, font: font)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    private func fadingText(_ text: Text, font: Font) -> some View {
+        ZStack(alignment: .bottom) {
+            text
+                .font(font)
+                .foregroundStyle(.primary)
+                .lineSpacing(3)
+                .lineLimit(7)
+                .truncationMode(.tail)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+
+            cardBottomFade(height: 16, color: Color(nsColor: .textBackgroundColor))
+        }
+    }
+
+    private var textPreviewText: String {
+        if clip.kind == .json {
+            return jsonPreviewText
+        }
+
+        if clip.kind == .command {
+            return commandPreviewText
+        }
+
+        return clip.content
     }
 
     private var codeBody: some View {
@@ -359,22 +394,71 @@ struct ClipCardView: View {
     }
 
     @ViewBuilder
-    private var imageBody: some View {
+    private var imageCanvas: some View {
         if let loadedImage {
-            // 用 .fit 完整显示整图（不裁切），letterbox 区域给一层极淡底衬托。
             Image(nsImage: loadedImage)
                 .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Color.primary.opacity(0.04))
-                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .scaledToFill()
+                .frame(width: Self.width, height: Self.height - 52)
+                .clipped()
         } else {
             Image(systemName: "photo")
                 .font(.largeTitle)
                 .symbolRenderingMode(.hierarchical)
                 .foregroundStyle(.tertiary)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .frame(width: Self.width, height: Self.height - 52)
+                .background(Color.primary.opacity(0.04))
         }
+    }
+
+    private var imageOverlay: some View {
+        ZStack(alignment: .bottom) {
+            cardBottomFade(height: 42, color: .black.opacity(0.5))
+
+            imageFooter
+            .padding(.horizontal, 14)
+            .padding(.bottom, 10)
+        }
+    }
+
+    private var imageFooter: some View {
+        HStack(spacing: 5) {
+            if let sourceIcon {
+                Image(nsImage: sourceIcon)
+                    .resizable()
+                    .frame(width: 14, height: 14)
+            }
+
+            Text(clip.source)
+                .font(.caption2)
+                .foregroundStyle(.white.opacity(0.82))
+                .lineLimit(1)
+
+            Spacer(minLength: 4)
+
+            Button(action: onTogglePin) {
+                Image(systemName: clip.isPinned ? "pin.fill" : "pin")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(clip.isPinned ? Color.accentColor : Color.white.opacity(0.78))
+                    .symbolEffect(.bounce, value: clip.isPinned)
+            }
+            .buttonStyle(.plain)
+            .opacity(clip.isPinned || isHovering ? 1 : 0)
+            .accessibilityLabel(clip.isPinned ? "取消固定" : "固定")
+        }
+    }
+
+    private func cardBottomFade(height: CGFloat, color: Color) -> some View {
+        LinearGradient(
+            colors: [
+                color.opacity(0),
+                color
+            ],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+        .frame(height: height)
+        .allowsHitTesting(false)
     }
 
     private var fileBody: some View {
@@ -425,6 +509,8 @@ struct ClipCardView: View {
 
     private func urlPreviewBody(title: String, icon: NSImage?) -> some View {
         VStack(alignment: .leading, spacing: 8) {
+            urlPreviewSurface(icon: icon)
+
             HStack(alignment: .top, spacing: 7) {
                 if let icon {
                     Image(nsImage: icon)
@@ -441,22 +527,65 @@ struct ClipCardView: View {
                 Text(title)
                     .font(.callout.weight(.medium))
                     .foregroundStyle(.primary)
-                    .lineLimit(3)
+                    .lineLimit(2)
             }
 
             Text(urlPathText)
                 .font(.caption)
                 .foregroundStyle(.secondary)
-                .lineLimit(3)
+                .lineLimit(2)
                 .truncationMode(.middle)
 
             Text(clip.content)
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
-                .lineLimit(2)
+                .lineLimit(1)
                 .truncationMode(.middle)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func urlPreviewSurface(icon: NSImage?) -> some View {
+        HStack(spacing: 8) {
+            Group {
+                if let icon {
+                    Image(nsImage: icon)
+                        .resizable()
+                        .frame(width: 16, height: 16)
+                        .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
+                } else {
+                    Image(systemName: "link")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(clip.kind.accent)
+                }
+            }
+            .frame(width: 28, height: 28)
+            .background(Color(nsColor: .textBackgroundColor).opacity(0.82), in: Circle())
+
+            Text(urlHostText)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.primary)
+                .lineLimit(1)
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 10)
+        .frame(height: 62)
+        .background {
+            ZStack(alignment: .topTrailing) {
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(clip.kind.accent.opacity(0.12))
+
+                Circle()
+                    .fill(clip.kind.accent.opacity(0.1))
+                    .frame(width: 72, height: 72)
+                    .offset(x: 24, y: -18)
+            }
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .strokeBorder(clip.kind.accent.opacity(0.16), lineWidth: 1)
+        }
     }
 
     private var urlHostText: String {

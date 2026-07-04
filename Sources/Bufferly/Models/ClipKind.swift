@@ -83,19 +83,19 @@ enum ClipKind: String, CaseIterable, Identifiable {
     var accent: Color {
         switch self {
         case .text:
-            .blue
+            Color(red: 0.0, green: 0.533, blue: 1.0)
         case .url:
-            .green
+            Color(red: 0.204, green: 0.780, blue: 0.345)
         case .json:
-            .purple
+            Color(red: 0.796, green: 0.188, blue: 0.878)
         case .command:
             Color(red: 0.34, green: 0.38, blue: 0.46)
         case .code:
-            .indigo
+            Color(red: 0.796, green: 0.188, blue: 0.878)
         case .email:
             .pink
         case .image:
-            .teal
+            Color(red: 1.0, green: 0.220, blue: 0.235)
         case .file:
             Color(red: 0.55, green: 0.45, blue: 0.32)
         case .richText:
