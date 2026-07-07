@@ -1,6 +1,6 @@
 # Bufferly
 
-为开发者和 AI 工作流打造的本地优先剪贴板工作台。
+为普通 macOS 用户打造的本地优先剪贴板助手。
 
 ## 项目状态
 
@@ -16,9 +16,12 @@
 
 ## 产品方向
 
-- 面向开发者和 AI heavy user，而不是通用剪贴板平替。
-- 本地优先保存剪贴板历史，默认保护隐私。
-- 重点支持代码、命令、URL、JSON、prompt、临时文本的搜索、复用、隐私过滤和可靠粘贴。
+- 面向普通 macOS 用户：复制过的文字、链接、图片、文件都能轻松找回。
+- 本地优先保存剪贴板历史，默认不上传任何剪贴板内容。
+- 自动识别验证码、链接、图片、文件、地址、电话、邮箱等普通用户能理解的类型。
+- 敏感内容（密码、验证码、token 等）自动保护，默认不保存明文。
+- 操作简单、低打扰，体验像系统自带功能一样自然。
+- 开发者 / AI 工作流相关能力（如代码识别、AI 集成）保留为未来高级功能，不作为主线卖点。
 
 ## MVP 范围
 
@@ -26,9 +29,9 @@
 - 保存最近剪贴板历史，支持去重。
 - 快捷键呼出搜索面板。
 - 回车粘贴选中条目。
-- Pin 常用片段。
-- 自动识别 URL / Code / JSON / Email / Command。
-- 敏感内容过滤，例如 token、密码、验证码、`.env` value。
+- Pin 常用内容。
+- 自动识别链接、邮箱、验证码等常见类型。
+- 敏感内容自动保护，例如密码、验证码、token。
 - 粘贴为纯文本。
 
 ## 暂不做
@@ -46,7 +49,8 @@
 - 打包本地 app：`bash scripts/build-app.sh`，产物在 `.build/Bufferly.app`（自动 Developer ID / ad-hoc 签名并校验）
 - 覆盖安装本机 app：`bash scripts/install-app.sh`（构建、退出旧进程、替换 `/Applications/Bufferly.app`、验签并启动）
 - 打包 DMG：`bash scripts/build-dmg.sh`，产物在 `.build/Bufferly.dmg`（无 Developer ID 时 ad-hoc 签名，本机可运行；零警告分发需 Developer ID + 公证）
-- 类型检查 / 测试：`swift build`
+- 类型检查：`swift build`
+- 测试：`swift test`（覆盖敏感内容过滤规则和内容类型识别）
 
 ## 代码风格 / 架构
 

@@ -54,27 +54,51 @@ enum HotKeyPreset: String, CaseIterable, Identifiable {
         return false
     }
 
-    /// 显示文案，如 `⌥Space` / `双击 ⌥`。
-    var displayName: String {
+    /// 紧凑符号形式，如 `⌥ Space`，用于面板内宽度受限的提示。
+    var symbols: String {
         switch self {
         case .optionSpace:
-            "⌥Space"
+            "⌥ Space"
         case .controlSpace:
-            "⌃Space"
+            "⌃ Space"
         case .commandShiftSpace:
-            "⌘⇧Space"
+            "⌘⇧ Space"
         case .commandShiftV:
             "⌘⇧V"
         case .commandOptionV:
             "⌘⌥V"
         case .doubleOption:
-            "双击 ⌥ Option"
+            "双击 ⌥"
         case .doubleCommand:
-            "双击 ⌘ Command"
+            "双击 ⌘"
         case .doubleControl:
-            "双击 ⌃ Control"
+            "双击 ⌃"
         case .doubleShift:
-            "双击 ⇧ Shift"
+            "双击 ⇧"
+        }
+    }
+
+    /// 完整显示文案：符号 + 口语化按键名，照顾不认识修饰键符号的用户。
+    var displayName: String {
+        switch self {
+        case .optionSpace:
+            "⌥ Space（Option + 空格）"
+        case .controlSpace:
+            "⌃ Space（Control + 空格）"
+        case .commandShiftSpace:
+            "⌘⇧ Space（Command + Shift + 空格）"
+        case .commandShiftV:
+            "⌘⇧V（Command + Shift + V）"
+        case .commandOptionV:
+            "⌘⌥V（Command + Option + V）"
+        case .doubleOption:
+            "连按两下 ⌥ Option"
+        case .doubleCommand:
+            "连按两下 ⌘ Command"
+        case .doubleControl:
+            "连按两下 ⌃ Control"
+        case .doubleShift:
+            "连按两下 ⇧ Shift"
         }
     }
 }

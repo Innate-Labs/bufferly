@@ -95,7 +95,7 @@ final class QuickPanelViewModel: ObservableObject {
         let scored: [(clip: ClipItem, score: Int)] = boardClips.compactMap { clip in
             let candidates = [
                 FuzzySearch.score(query: trimmedQuery, in: clip.title).map { $0 * 3 },
-                FuzzySearch.score(query: trimmedQuery, in: clip.kind.rawValue).map { $0 * 2 },
+                FuzzySearch.score(query: trimmedQuery, in: clip.kind.displayName).map { $0 * 2 },
                 FuzzySearch.score(query: trimmedQuery, in: clip.source).map { $0 * 2 },
                 FuzzySearch.score(query: trimmedQuery, in: clip.preview),
             ].compactMap { $0 }

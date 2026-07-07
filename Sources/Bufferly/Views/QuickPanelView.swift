@@ -326,13 +326,14 @@ struct QuickPanelView: View {
                     .fontWeight(.semibold)
 
                 VStack(alignment: .leading, spacing: 8) {
-                    onboardingLine("⌥ Space", "在任意 App 呼出 / 隐藏面板")
-                    onboardingLine("← →", "浏览 · Return 按当前模式执行 · 空格预览")
-                    onboardingLine("⌘P / ⌘⌫", "固定 / 删除选中")
+                    onboardingLine(appSettings.hotKeyPreset.symbols, "在任意 App 呼出 / 隐藏这个面板")
+                    onboardingLine("← →", "左右浏览 · 按空格放大预览")
+                    onboardingLine("回车", "把选中内容复制到剪贴板")
+                    onboardingLine("⌘P / ⌘⌫", "固定常用内容 / 删除选中")
                 }
                 .font(.callout)
 
-                Text("若选择「复制后粘贴到上一应用」，需在设置里授权辅助功能。")
+                Text("呼出快捷键是 \(appSettings.hotKeyPreset.displayName)。想按回车后自动粘贴回刚才的 App，可以在设置里开启。")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -353,7 +354,7 @@ struct QuickPanelView: View {
             Text(key)
                 .font(.callout.monospaced())
                 .fontWeight(.medium)
-                .frame(width: 78, alignment: .leading)
+                .frame(width: 90, alignment: .leading)
             Text(desc)
                 .foregroundStyle(.secondary)
             Spacer(minLength: 0)
@@ -404,7 +405,7 @@ struct QuickPanelView: View {
                 .foregroundStyle(clip.kind.accent)
                 .frame(width: 15, height: 15)
 
-            Text(clip.kind.rawValue)
+            Text(clip.kind.displayName)
                 .fontWeight(.semibold)
 
             Text(clip.source)
@@ -437,9 +438,15 @@ struct QuickPanelView: View {
         let mono = clip.kind == .code || clip.kind == .json || clip.kind == .command
 
         if clip.isSensitive {
-            Text("敏感内容已隐藏")
-                .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            VStack(spacing: 6) {
+                Text("敏感内容已隐藏")
+                    .foregroundStyle(.secondary)
+
+                Text("为保护隐私没有保存原文，需要时请回到原来的 App 重新复制。")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if
             clip.kind == .image,
             let filename = clip.attachmentFilename,
@@ -578,7 +585,7 @@ struct QuickPanelView: View {
         }
 
         if selectedClip.isSensitive {
-            return "敏感内容不会写入剪贴板"
+            return "没有保存原文，请回到原来的 App 重新复制"
         }
 
         return "无法写入剪贴板"

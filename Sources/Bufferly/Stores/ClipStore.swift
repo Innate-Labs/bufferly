@@ -2,8 +2,9 @@ import Foundation
 import GRDB
 
 final class ClipStore {
-    static var databasePath: String {
-        (try? databaseURL().path) ?? "Unavailable"
+    /// 数据库文件路径；目录不可用时为 nil，由界面层决定显示文案。
+    static var databasePath: String? {
+        try? databaseURL().path
     }
 
     private let dbQueue: DatabaseQueue

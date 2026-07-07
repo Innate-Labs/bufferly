@@ -63,7 +63,7 @@ struct SettingsView: View {
                 tint: .green
             )
 
-            Text("剪贴板历史保存在本机 SQLite 数据库；Bufferly 不做云同步，不把内容上传到第三方服务。链接预览关闭时，复制 URL 也不会联网抓取标题或图标。")
+            Text("剪贴板历史只保存在本机的数据库文件里；Bufferly 不做云同步，不把内容上传到任何服务器。链接预览关闭时，复制链接也不会联网获取标题或图标。")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -231,12 +231,12 @@ struct SettingsView: View {
 
     private var privacySection: some View {
         Section("隐私") {
-            settingRow("自动识别 token、密码、API key、.env 值等敏感内容，避免明文存进历史。") {
+            settingRow("自动识别密码、验证码、密钥等敏感信息，不把原文存进历史。") {
                 Toggle("敏感内容过滤", isOn: $settings.sensitiveFiltering)
             }
 
-            settingRow("命中敏感内容时存一张打码占位卡（不含明文）；关闭则直接丢弃、不入库。") {
-                Toggle("保留脱敏占位（关则直接丢弃）", isOn: $settings.storeSensitivePlaceholder)
+            settingRow("识别到敏感信息时留一张提示卡片（不保存内容本身）；关闭后则完全不记录。") {
+                Toggle("保留提示卡片（不保存内容）", isOn: $settings.storeSensitivePlaceholder)
                     .disabled(!settings.sensitiveFiltering)
             }
 
@@ -340,7 +340,7 @@ struct SettingsView: View {
             settingRow("你的剪贴板历史只保存在这个本地数据库文件里，不上传云端、不联网同步。") {
                 LabeledContent("存储位置") {
                     VStack(alignment: .trailing, spacing: 6) {
-                        Text(ClipStore.databasePath)
+                        Text(ClipStore.databasePath ?? "暂时无法访问")
                             .foregroundStyle(.secondary)
                             .lineLimit(2)
                             .multilineTextAlignment(.trailing)
@@ -350,7 +350,7 @@ struct SettingsView: View {
                         } label: {
                             Label("在 Finder 中显示", systemImage: "folder")
                         }
-                        .disabled(ClipStore.databasePath == "Unavailable")
+                        .disabled(ClipStore.databasePath == nil)
                     }
                 }
             }
@@ -498,8 +498,8 @@ struct SettingsView: View {
     }
 
     private func revealDatabaseInFinder() {
-        let url = URL(fileURLWithPath: ClipStore.databasePath)
-        NSWorkspace.shared.activateFileViewerSelecting([url])
+        guard let path = ClipStore.databasePath else { return }
+        NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
     }
 }
 

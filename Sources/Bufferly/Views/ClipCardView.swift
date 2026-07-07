@@ -59,7 +59,7 @@ struct ClipCardView: View {
         if containsQuery(clip.title, query: trimmedQuery) {
             return "标题"
         }
-        if containsQuery(clip.kind.rawValue, query: trimmedQuery) {
+        if containsQuery(clip.kind.displayName, query: trimmedQuery) {
             return "类型"
         }
         if containsQuery(clip.source, query: trimmedQuery) {
@@ -125,13 +125,13 @@ struct ClipCardView: View {
             lastTapTime = now
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(clip.kind.rawValue)，\(clip.title)，\(timeText)复制自 \(clip.source)")
+        .accessibilityLabel("\(clip.kind.displayName)，\(clip.title)，\(timeText)复制自 \(clip.source)")
     }
 
     private var header: some View {
         HStack(alignment: .top, spacing: 8) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(clip.kind.rawValue)
+                Text(clip.kind.displayName)
                     .font(.subheadline)
                     .fontWeight(.semibold)
                     .foregroundStyle(.white)
@@ -630,14 +630,14 @@ struct ClipCardView: View {
         }
 
         if let dictionary = jsonObject as? [String: Any] {
-            return "\(dictionary.count) 个键"
+            return "\(dictionary.count) 项"
         }
 
         if let array = jsonObject as? [Any] {
             return "\(array.count) 项"
         }
 
-        return "JSON 值"
+        return "数据"
     }
 
     private var jsonPreviewText: String {
@@ -711,6 +711,11 @@ struct ClipCardView: View {
             Text("敏感内容已隐藏")
                 .font(.callout)
                 .foregroundStyle(.secondary)
+
+            Text("像是密码或验证码，为保护隐私没有保存原文。需要时请回到原来的 App 重新复制。")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }

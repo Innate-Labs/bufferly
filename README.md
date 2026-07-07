@@ -4,9 +4,9 @@
 
 # Bufferly
 
-**为开发者和 AI 工作流打造的本地优先剪贴板工作台**
+**普通 macOS 用户的本地优先剪贴板助手**
 
-<sub>A local-first clipboard workspace for developers & AI-heavy workflows</sub>
+<sub>A local-first clipboard assistant for everyday Mac users</sub>
 
 <br/>
 
@@ -27,7 +27,7 @@
 
 ---
 
-复制过的代码、命令、链接、JSON、prompt、临时文本，Bufferly 自动把它们整理成**可搜索、可复用、可安全粘贴**的本地工作台 —— 不是又一个通用剪贴板平替，而是为**开发者和 AI heavy user** 量身做的。一切只存在你自己的机器上，默认保护隐私。
+复制过的文字、链接、图片、文件，Bufferly 自动帮你留住，随时**能搜到、能找回、能安全粘贴**。一切只存在你自己的 Mac 上，**不上传任何剪贴板内容**，敏感内容自动保护——用起来就像系统自带的功能一样自然。
 
 <p align="center">
   <img src="docs/screenshot.png" width="100%" alt="Bufferly Quick Panel" />
@@ -35,13 +35,13 @@
 
 ## ✨ 特性
 
-- 📋 **自动监听 + 去重** —— 复制即入库，呼出瞬间补抓，最新的永远在第一张
-- 🔍 **模糊搜索 + 相关度排序** —— 敲 `dbcon` 也能搜出 `database connection`，打错字也行
-- 🎴 **Paste 式卡片墙** —— 横向卡片按类型着色，来源 App 图标一眼可辨
-- 🏷️ **自动类型识别** —— URL / 代码 / JSON / 命令 / 邮件 自动归类
-- 🖼️ **不止文本** —— 图片、文件、富文本（RTF）都能存、能预览、能原样粘回
-- 🔒 **敏感内容过滤** —— token、密码、`.env` value、API key 命中后脱敏或不入库
-- 📌 **Pin 常用片段** —— 固定到独立分区，随取随用
+- 📋 **自动记住 + 去重** —— 复制即保存，呼出瞬间补抓，最新的永远在第一张
+- 🔍 **模糊搜索** —— 记得一两个词就能搜到，打错字也行
+- 🎴 **卡片式历史墙** —— 横向卡片按类型着色，来源 App 图标一眼可辨
+- 🏷️ **自动类型识别** —— 链接、图片、文件、邮箱、验证码等自动归类
+- 🖼️ **不止文本** —— 图片、文件、富文本都能存、能预览、能原样粘回
+- 🔒 **敏感内容自动保护** —— 密码、验证码、密钥等命中后脱敏或不保存
+- 📌 **固定常用内容** —— 常贴的地址、话术、链接固定到独立分区，随取随用
 - ⚡ **Return 执行** —— 可只复制到剪贴板，也可复制后粘贴到上一应用
 - 🛡️ **排除 App** —— 默认不记录 Passwords、Keychain Access、1Password、Bitwarden 等敏感来源
 - 🎨 **原生 macOS 26 体验** —— Apple Liquid Glass、语义色、SF Symbols + Tabler Icons，支持 Light / Dark、Reduce Motion
@@ -105,7 +105,7 @@ Swift · SwiftUI · AppKit · [GRDB](https://github.com/groue/GRDB.swift) / SQLi
 
 ## 🗺️ 路线图
 
-已完成核心剪贴板能力 + 图片/文件/富文本 + 模糊搜索。下一步重点是隐私控制、安装体验、可靠性和高频交互手感。详见 **[ROADMAP.md](ROADMAP.md)**。
+已完成核心剪贴板能力 + 图片/文件/富文本 + 模糊搜索。下一步重点是让普通用户开箱即用：更贴近日常的类型识别、隐私控制、安装体验、可靠性和高频交互手感。详见 **[ROADMAP.md](ROADMAP.md)**。
 
 ## 🤝 贡献
 
@@ -115,4 +115,4 @@ Swift · SwiftUI · AppKit · [GRDB](https://github.com/groue/GRDB.swift) / SQLi
 
 [MIT](LICENSE) © [Innate Labs](https://github.com/Innate-Labs)
 
-<div align="center"><sub>Built for developers who copy 50+ things a day.</sub></div>
+<div align="center"><sub>Built for everyone who copies things every day.</sub></div>
