@@ -9,10 +9,16 @@ struct QuickPanelView: View {
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @FocusState private var searchFocused: Bool
     @State private var keyMonitor: Any?
+    @State private var scrollWheelMonitor: Any?
     @State private var showPreview = false
     @State private var showOnboarding = false
     @State private var statusBanner: StatusBanner?
     @State private var statusDismissTask: Task<Void, Never>?
+    /// 卡片墙滚动控制与几何信息（偏移 / 视口 / 内容宽），用于可见性判断和滚轮映射。
+    @State private var wallPosition = ScrollPosition()
+    @State private var wallGeometry = WallGeometry()
+    /// 键盘落卡瞬时脉冲：只发给目标卡，token 变化触发一次上移后自动复原。
+    @State private var keyboardPulse: KeyboardPulse?
 
     init(
         viewModel: QuickPanelViewModel = QuickPanelViewModel(),
@@ -29,6 +35,8 @@ struct QuickPanelView: View {
             topBar
 
             cardWall
+
+            footerBar
         }
         .frame(maxWidth: .infinity)
         .frame(height: QuickPanelView.panelHeight)
@@ -42,24 +50,37 @@ struct QuickPanelView: View {
                     .transition(statusTransition)
             }
         }
-        .animation(reduceMotion ? nil : .easeOut(duration: 0.16), value: statusBanner)
+        .animation(reduceMotion ? nil : Motion.toast, value: statusBanner)
         .overlay {
             if showPreview, viewModel.selectedClip != nil {
                 previewOverlay
+                    .transition(.opacity)
             }
         }
         .overlay {
             if showOnboarding {
                 onboardingOverlay
+                    .transition(.opacity)
             }
         }
+        .animation(reduceMotion ? nil : Motion.overlay, value: showPreview)
+        .animation(reduceMotion ? nil : Motion.overlay, value: showOnboarding)
         .onAppear {
             viewModel.startMonitoring()
             installKeyMonitor()
+            installScrollWheelMonitor()
             focusSearch()
             showOnboarding = !AppSettings.shared.hasCompletedOnboarding
         }
         .onDisappear {
+            if let keyMonitor {
+                NSEvent.removeMonitor(keyMonitor)
+                self.keyMonitor = nil
+            }
+            if let scrollWheelMonitor {
+                NSEvent.removeMonitor(scrollWheelMonitor)
+                self.scrollWheelMonitor = nil
+            }
             statusDismissTask?.cancel()
             statusDismissTask = nil
         }
@@ -79,7 +100,8 @@ struct QuickPanelView: View {
         }
     }
 
-    static let panelHeight: CGFloat = 370
+    // 392 = 顶栏 + 卡片墙 + footer（DESIGN §4.1 建议高度）。
+    static let panelHeight: CGFloat = 392
 
     // MARK: - Top bar
 
@@ -153,44 +175,114 @@ struct QuickPanelView: View {
 
     // MARK: - Card wall
 
+    private static let cardSpacing: CGFloat = 16
+    private static let wallPadding: CGFloat = 20
+
     @ViewBuilder
     private var cardWall: some View {
         if viewModel.filteredClips.isEmpty {
             emptyState
         } else {
-            ScrollViewReader { proxy in
-                ScrollView(.horizontal) {
-                    LazyHStack(spacing: 16) {
-                        ForEach(viewModel.filteredClips) { clip in
-                            ClipCardView(
-                                clip: clip,
-                                searchQuery: viewModel.query,
-                                onSelect: { viewModel.select(clipID: clip.id) },
-                                onActivate: {
-                                    viewModel.select(clipID: clip.id)
-                                    activateSelection()
-                                },
-                                onTogglePin: { viewModel.togglePin(clipID: clip.id) }
-                            )
-                            .id(clip.id)
-                            .contextMenu {
-                                clipActions(for: clip)
-                            }
+            ScrollView(.horizontal) {
+                LazyHStack(spacing: Self.cardSpacing) {
+                    ForEach(viewModel.filteredClips) { clip in
+                        ClipCardView(
+                            clip: clip,
+                            searchQuery: viewModel.query,
+                            keyboardPulseToken: keyboardPulse?.clipID == clip.id ? keyboardPulse?.token : nil,
+                            onSelect: { viewModel.select(clipID: clip.id) },
+                            onActivate: {
+                                viewModel.select(clipID: clip.id)
+                                activateSelection()
+                            },
+                            onTogglePin: { viewModel.togglePin(clipID: clip.id) }
+                        )
+                        .id(clip.id)
+                        .contextMenu {
+                            clipActions(for: clip)
                         }
+                        // 只做退场（删除 / 取消固定）的轻微 fade + 缩小；入场保持直入，不做飞入。
+                        .transition(
+                            reduceMotion
+                                ? .identity
+                                : .asymmetric(
+                                    insertion: .identity,
+                                    removal: .opacity.combined(with: .scale(scale: 0.98))
+                                )
+                        )
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 20)
-                    .animation(reduceMotion ? nil : .easeOut(duration: 0.18), value: viewModel.filteredClips.map(\.id))
                 }
-                .scrollIndicators(.hidden)
-                // Tahoe 滚动边缘柔化：左右边缘的卡片淡入面板圆角，不硬裁切。
-                .scrollEdgeEffectStyle(.soft, for: .horizontal)
-                .onChange(of: viewModel.scrollTarget) {
-                    guard let target = viewModel.scrollTarget else { return }
-                    proxy.scrollTo(target, anchor: .center)
-                }
+                .padding(.horizontal, Self.wallPadding)
+                .padding(.vertical, 20)
+                .animation(reduceMotion ? nil : Motion.listChange, value: viewModel.filteredClips.map(\.id))
+            }
+            .scrollIndicators(.hidden)
+            // Tahoe 滚动边缘柔化：左右边缘的卡片淡入面板圆角，不硬裁切。
+            .scrollEdgeEffectStyle(.soft, for: .horizontal)
+            .scrollPosition($wallPosition)
+            .onScrollGeometryChange(for: WallGeometry.self) { geometry in
+                WallGeometry(
+                    offsetX: geometry.contentOffset.x,
+                    viewportWidth: geometry.containerSize.width,
+                    contentWidth: geometry.contentSize.width
+                )
+            } action: { _, geometry in
+                wallGeometry = geometry
+            }
+            .onChange(of: viewModel.scrollRequest) {
+                guard let request = viewModel.scrollRequest else { return }
+                handleScrollRequest(request)
             }
             .frame(maxHeight: .infinity)
+        }
+    }
+
+    // MARK: - 卡片墙滚动
+
+    private func handleScrollRequest(_ request: QuickPanelViewModel.ScrollRequest) {
+        switch request.kind {
+        case .resetToFront:
+            // 程序性复位（呼出 / 搜索 / 新条目）：直接就位，不播开场滚动。
+            wallPosition.scrollTo(edge: .leading)
+        case .reveal(let clipID):
+            revealCard(clipID)
+        }
+    }
+
+    /// 键盘导航落卡：目标卡完全可见时只播脉冲、画面不动；
+    /// 不可见时滚到最近一侧边缘（DESIGN §8：~160ms ease-out）。
+    private func revealCard(_ clipID: ClipItem.ID) {
+        keyboardPulse = KeyboardPulse(clipID: clipID)
+
+        guard
+            let index = viewModel.filteredClips.firstIndex(where: { $0.id == clipID }),
+            wallGeometry.viewportWidth > 0
+        else {
+            return
+        }
+
+        let cardStride = ClipCardView.width + Self.cardSpacing
+        let cardMinX = Self.wallPadding + CGFloat(index) * cardStride
+        let cardMaxX = cardMinX + ClipCardView.width
+        let visibleMinX = wallGeometry.offsetX
+        let visibleMaxX = wallGeometry.offsetX + wallGeometry.viewportWidth
+
+        if cardMinX >= visibleMinX, cardMaxX <= visibleMaxX {
+            return
+        }
+
+        let maxOffset = max(0, wallGeometry.contentWidth - wallGeometry.viewportWidth)
+        let rawTarget = cardMinX < visibleMinX
+            ? cardMinX - Self.wallPadding
+            : cardMaxX + Self.wallPadding - wallGeometry.viewportWidth
+        let targetX = min(max(0, rawTarget), maxOffset)
+
+        if reduceMotion {
+            wallPosition.scrollTo(x: targetX)
+        } else {
+            withAnimation(Motion.scroll) {
+                wallPosition.scrollTo(x: targetX)
+            }
         }
     }
 
@@ -213,7 +305,31 @@ struct QuickPanelView: View {
             return "没有匹配内容"
         }
 
-        return viewModel.board == .pinned ? "还没有固定的片段" : "复制文本开始使用"
+        return viewModel.board == .pinned ? "还没有固定的内容" : "复制的文字、图片、文件会出现在这里"
+    }
+
+    // MARK: - Footer
+
+    /// 常驻辅助条（DESIGN §4.7）：结果数量 + 核心按键提示，兜住引导看完就忘的用户。
+    private var footerBar: some View {
+        HStack(spacing: 12) {
+            Text("\(viewModel.filteredClips.count) 条")
+                .foregroundStyle(.secondary)
+                .monospacedDigit()
+
+            Spacer(minLength: 8)
+
+            Text("← → 选择 · 回车\(footerReturnHint) · 空格预览 · ⌘P 固定")
+                .foregroundStyle(.tertiary)
+                .lineLimit(1)
+        }
+        .font(.caption)
+        .padding(.horizontal, 20)
+        .padding(.bottom, 12)
+    }
+
+    private var footerReturnHint: String {
+        appSettings.autoPasteAfterSelection && eventPostingPermission.isGranted ? "粘贴" : "复制"
     }
 
     // MARK: - Actions
@@ -266,13 +382,14 @@ struct QuickPanelView: View {
             Text(banner.message)
                 .font(.caption.weight(.medium))
                 .foregroundStyle(.primary)
-                .lineLimit(1)
-
-            Spacer(minLength: 0)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .padding(.leading, 9)
         .padding(.trailing, 13)
-        .frame(width: 312, height: 42)
+        // 宽度随内容自适应，长消息（授权类警告）最多两行，不再被固定宽度截断。
+        .frame(minHeight: 42)
+        .frame(maxWidth: 420)
         .background {
             if reduceTransparency {
                 shape
@@ -346,6 +463,8 @@ struct QuickPanelView: View {
             .frame(maxWidth: 380)
             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
             .padding(24)
+            // 浮层本体在 scrim 淡入之上叠加 0.98 → 1 的轻微缩放（DESIGN §8 面板出现动效）。
+            .transition(.opacity.combined(with: .scale(scale: 0.98)))
         }
     }
 
@@ -373,6 +492,7 @@ struct QuickPanelView: View {
 
                 previewPanel(for: clip)
                     .padding(20)
+                    .transition(.opacity.combined(with: .scale(scale: 0.98)))
             }
         }
     }
@@ -477,6 +597,42 @@ struct QuickPanelView: View {
         }
     }
 
+    /// 安装本地 scrollWheel 监听：把「纵向为主」的滚轮 / 触控板滚动映射为卡片墙横向滚动
+    /// （Paste 惯例，Magic Mouse / 滚轮鼠标才能逛卡片墙）；横向手势保持原生行为。
+    private func installScrollWheelMonitor() {
+        guard scrollWheelMonitor == nil else { return }
+        scrollWheelMonitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { event in
+            handleScrollWheel(event)
+        }
+    }
+
+    private func handleScrollWheel(_ event: NSEvent) -> NSEvent? {
+        // 只接管浮动无边框面板自己的滚动；预览 / 引导覆盖层期间放行（预览里有纵向滚动区）。
+        guard
+            let window = event.window,
+            window.styleMask.contains(.borderless),
+            window.level == .floating,
+            !showPreview, !showOnboarding,
+            !viewModel.filteredClips.isEmpty
+        else {
+            return event
+        }
+
+        let deltaX = event.scrollingDeltaX
+        let deltaY = event.scrollingDeltaY
+
+        guard abs(deltaY) > abs(deltaX) else {
+            return event
+        }
+
+        // 非精确滚动（传统滚轮）按行计数，放大到舒适的步进。
+        let factor: CGFloat = event.hasPreciseScrollingDeltas ? 1 : 24
+        let maxOffset = max(0, wallGeometry.contentWidth - wallGeometry.viewportWidth)
+        let targetX = min(max(0, wallGeometry.offsetX - deltaY * factor), maxOffset)
+        wallPosition.scrollTo(x: targetX)
+        return nil
+    }
+
     /// 安装本地 keyDown 监听，集中接管面板内的导航 / 动作键。
     ///
     /// 为什么不用 `onMoveCommand` / `keyboardShortcut`：无边框浮层面板里 SwiftUI 的
@@ -501,13 +657,22 @@ struct QuickPanelView: View {
 
         let mods = event.modifierFlags.intersection([.command, .option, .control, .shift])
 
-        // 引导覆盖层期间：Return / Esc / 空格关闭引导，其它键一律吞掉避免误操作。
+        // 引导覆盖层期间：Return / Esc / 空格关闭引导；直接打字则关掉引导并把
+        // 按键透传给搜索框（第一反应就是搜索的用户不该被卡住）；其余组合键吞掉。
         if showOnboarding {
             switch (event.keyCode, mods) {
             case (36, []), (76, []), (53, []), (49, []):
                 dismissOnboarding()
                 return nil
             default:
+                if
+                    mods.subtracting(.shift).isEmpty,
+                    let character = event.charactersIgnoringModifiers?.first,
+                    character.isLetter || character.isNumber || character.isPunctuation || character.isSymbol
+                {
+                    dismissOnboarding()
+                    return event
+                }
                 return nil
             }
         }
@@ -533,6 +698,12 @@ struct QuickPanelView: View {
             return nil
         case (35, [.command]): // ⌘P 固定 / 取消固定
             viewModel.togglePinSelected()
+            return nil
+        case (18, [.command]): // ⌘1 剪贴板分区
+            switchBoard(.clipboard)
+            return nil
+        case (19, [.command]): // ⌘2 已固定分区
+            switchBoard(.pinned)
             return nil
         case (49, []): // 空格：搜索为空时切换 Quick Look 预览，否则放行给搜索框打空格
             if viewModel.query.isEmpty {
@@ -560,6 +731,19 @@ struct QuickPanelView: View {
     private func dismissOnboarding() {
         showOnboarding = false
         AppSettings.shared.hasCompletedOnboarding = true
+    }
+
+    /// 键盘切换分区（⌘1/⌘2），与点击分段标签共用同一滑动动效。
+    private func switchBoard(_ board: QuickPanelViewModel.Board) {
+        guard viewModel.board != board else { return }
+
+        if reduceMotion {
+            viewModel.board = board
+        } else {
+            withAnimation(Motion.tabSlide) {
+                viewModel.board = board
+            }
+        }
     }
 
     private func activateSelection(mode: QuickPanelViewModel.PasteMode = .original) {
@@ -596,6 +780,19 @@ private struct StatusBanner: Equatable {
     let id = UUID()
     let message: String
     let kind: QuickPanelStatusKind
+}
+
+/// 卡片墙滚动几何：内容偏移 + 视口宽 + 内容总宽。
+private struct WallGeometry: Equatable {
+    var offsetX: CGFloat = 0
+    var viewportWidth: CGFloat = 0
+    var contentWidth: CGFloat = 0
+}
+
+/// 键盘落卡脉冲：token 每次都变，保证同一张卡连续触发也能重播。
+private struct KeyboardPulse: Equatable {
+    let clipID: ClipItem.ID
+    let token = UUID()
 }
 
 private extension QuickPanelStatusKind {

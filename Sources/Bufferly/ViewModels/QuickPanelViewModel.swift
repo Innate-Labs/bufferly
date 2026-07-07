@@ -27,18 +27,31 @@ final class QuickPanelViewModel: ObservableObject {
         case plainText
     }
 
+    /// 卡片墙滚动请求。`token` 保证相同目标的连续请求也能触发 onChange。
+    struct ScrollRequest: Equatable {
+        enum Kind: Equatable {
+            /// 程序性复位（呼出 / 搜索变化 / 新条目）：直接回到最前，不播动画。
+            case resetToFront
+            /// 键盘导航：目标卡不完全可见时才滚入视野，带动画和瞬时脉冲。
+            case reveal(ClipItem.ID)
+        }
+
+        let kind: Kind
+        private let token = UUID()
+    }
+
     @Published var query = ""
     @Published private(set) var clips: [ClipItem] = []
     @Published var selectedID: ClipItem.ID?
     @Published private(set) var isFocusVisible = false
-    /// 仅在键盘 / 程序性选择时设置，驱动卡片墙把目标滚入视野；鼠标点击不设置，避免点一下整排乱跑。
-    @Published var scrollTarget: ClipItem.ID?
+    /// 仅在键盘 / 程序性选择时设置，驱动卡片墙滚动；鼠标点击不设置，避免点一下整排乱跑。
+    @Published var scrollRequest: ScrollRequest?
     @Published var board: Board = .clipboard {
         didSet {
             guard oldValue != board else { return }
             selectedID = filteredClips.first?.id
             isFocusVisible = false
-            scrollTarget = selectedID
+            scrollRequest = ScrollRequest(kind: .resetToFront)
         }
     }
 
@@ -159,7 +172,7 @@ final class QuickPanelViewModel: ObservableObject {
     func prepareForPanelShow() {
         selectedID = filteredClips.first?.id
         isFocusVisible = false
-        scrollTarget = selectedID
+        scrollRequest = ScrollRequest(kind: .resetToFront)
     }
 
     /// 一次性回填旧条目的来源 bundle id（功能上线前的历史没有它，导致无来源图标）。
@@ -299,21 +312,27 @@ final class QuickPanelViewModel: ObservableObject {
 
         selectedID = filteredClips.first?.id
         isFocusVisible = false
-        scrollTarget = selectedID
+        scrollRequest = ScrollRequest(kind: .resetToFront)
     }
 
     func selectNext() {
         moveSelection(offset: 1)
-        scrollTarget = selectedID
+        requestRevealSelection()
     }
 
     func selectPrevious() {
         moveSelection(offset: -1)
-        scrollTarget = selectedID
+        requestRevealSelection()
     }
 
+    private func requestRevealSelection() {
+        guard let selectedID else { return }
+        scrollRequest = ScrollRequest(kind: .reveal(selectedID))
+    }
+
+    /// 与 Return 一致：未按过方向键时作用于第一张（selectedClip 的兜底），不再静默无效。
     func togglePinSelected() {
-        guard isFocusVisible, let selectedClip else {
+        guard let selectedClip else {
             return
         }
 
@@ -330,8 +349,9 @@ final class QuickPanelViewModel: ObservableObject {
         persistPinState(for: clips[index])
     }
 
+    /// 与 Return 一致：未按过方向键时作用于第一张（selectedClip 的兜底），不再静默无效。
     func deleteSelected() {
-        guard isFocusVisible, let selectedClip else {
+        guard let selectedClip else {
             return
         }
 
@@ -452,13 +472,13 @@ final class QuickPanelViewModel: ObservableObject {
     func handleQueryChange() {
         selectedID = filteredClips.first?.id
         isFocusVisible = false
-        scrollTarget = selectedID
+        scrollRequest = ScrollRequest(kind: .resetToFront)
     }
 
     private func selectFirstIfNeeded() {
         if selectedID == nil || selectedClip == nil {
             selectedID = filteredClips.first?.id
-            scrollTarget = selectedID
+            scrollRequest = ScrollRequest(kind: .resetToFront)
         }
     }
 
@@ -492,7 +512,7 @@ final class QuickPanelViewModel: ObservableObject {
         }
 
         selectedID = filteredClips.first?.id
-        scrollTarget = selectedID
+        scrollRequest = ScrollRequest(kind: .resetToFront)
     }
 
     private func pruneOrphanedBlobs() {

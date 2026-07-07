@@ -85,6 +85,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             statusMessage = "已复制到剪贴板"
         }
 
+        // 失败提示不能被「完成后关闭面板」吞掉：保持面板可见并说明原因，
+        // 否则用户以为已粘贴，实际什么都没发生。
+        if let statusMessage, statusKind == .warning {
+            postStatus(statusMessage, kind: statusKind)
+            return
+        }
+
         if settings.hideAfterPaste {
             hidePanelAfterPasteIfNeeded()
         } else if let statusMessage {

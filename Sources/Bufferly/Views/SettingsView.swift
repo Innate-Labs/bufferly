@@ -98,7 +98,7 @@ struct SettingsView: View {
             }
 
             LabeledContent("面板内") {
-                Text("←→ 选择 · Return 粘贴 · ⌥Return 仅复制 · ⌘Return 纯文本 · ⌘P 固定 · ⌘⌫ 删除")
+                Text("←→ 选择 · 空格预览 · Return 粘贴 · ⌥Return 仅复制 · ⌘Return 纯文本 · ⌘P 固定 · ⌘⌫ 删除 · ⌘1/⌘2 切换分区")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.trailing)
@@ -232,7 +232,7 @@ struct SettingsView: View {
     private var privacySection: some View {
         Section("隐私") {
             settingRow("自动识别密码、验证码、密钥等敏感信息，不把原文存进历史。") {
-                Toggle("敏感内容过滤", isOn: $settings.sensitiveFiltering)
+                Toggle("敏感内容保护", isOn: $settings.sensitiveFiltering)
             }
 
             settingRow("识别到敏感信息时留一张提示卡片（不保存内容本身）；关闭后则完全不记录。") {
@@ -240,7 +240,7 @@ struct SettingsView: View {
                     .disabled(!settings.sensitiveFiltering)
             }
 
-            settingRow("开启后会联网获取 URL 的标题与图标。默认关闭以保护隐私。") {
+            settingRow("开启后会联网获取链接的标题与图标，显示在卡片上。默认关闭以保护隐私。") {
                 Toggle("链接预览", isOn: $settings.linkPreviewsEnabled)
             }
 

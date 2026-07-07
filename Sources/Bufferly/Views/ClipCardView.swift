@@ -6,6 +6,8 @@ import SwiftUI
 struct ClipCardView: View {
     let clip: ClipItem
     let searchQuery: String
+    /// 键盘导航落到这张卡时由父级传入（token 每次都变）；触发一次瞬时上移脉冲。
+    let keyboardPulseToken: UUID?
     let onSelect: () -> Void
     let onActivate: () -> Void
     let onTogglePin: () -> Void
@@ -14,6 +16,7 @@ struct ClipCardView: View {
     @State private var lastTapTime = Date.distantPast
     @State private var isHovering = false
     @State private var isPressed = false
+    @State private var isKeyboardPulsing = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// 附件型懒加载：图片缩略图 / 富文本富排版，从 blob 读出后缓存。
     @State private var loadedImage: NSImage?
@@ -31,12 +34,14 @@ struct ClipCardView: View {
     init(
         clip: ClipItem,
         searchQuery: String = "",
+        keyboardPulseToken: UUID? = nil,
         onSelect: @escaping () -> Void,
         onActivate: @escaping () -> Void,
         onTogglePin: @escaping () -> Void
     ) {
         self.clip = clip
         self.searchQuery = searchQuery
+        self.keyboardPulseToken = keyboardPulseToken
         self.onSelect = onSelect
         self.onActivate = onActivate
         self.onTogglePin = onTogglePin
@@ -47,7 +52,12 @@ struct ClipCardView: View {
     }
 
     private var timeText: String {
-        clip.relativeTime == "刚刚" ? "刚刚" : clip.relativeTime + "前"
+        let relative = clip.relativeTime
+        // 「刚刚」「昨天」本身就是完整表达，加「前」会变成「昨天前」。
+        if relative == "刚刚" || relative == "昨天" {
+            return relative
+        }
+        return relative + "前"
     }
 
     private var searchMatchLabel: String? {
@@ -69,7 +79,8 @@ struct ClipCardView: View {
             return "正文"
         }
 
-        return "相关"
+        // 只有模糊打分命中、子串不命中时走到这里；「相关」对普通用户没有信息量，不显示。
+        return nil
     }
 
     /// 只在按下瞬间缩小作反馈；hover / selected 不再整体放大。
@@ -81,17 +92,8 @@ struct ClipCardView: View {
 
     private var liftOffset: CGFloat {
         if reduceMotion { return 0 }
-        if isHovering { return -2 }
+        if isHovering || isKeyboardPulsing { return -2 }
         return 0
-    }
-
-    /// 点击时的按下脉冲：快速下压再弹回，给"点了有反应"的反馈（不新增手势，避免与横向滚动冲突）。
-    private func triggerPressPulse() {
-        guard !reduceMotion else { return }
-        isPressed = true
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.09) {
-            isPressed = false
-        }
     }
 
     var body: some View {
@@ -112,10 +114,10 @@ struct ClipCardView: View {
         .offset(y: liftOffset)
         .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .onHover { isHovering = $0 }
-        .animation(reduceMotion ? nil : .snappy(duration: 0.18), value: isHovering)
-        .animation(reduceMotion ? nil : .snappy(duration: 0.13), value: isPressed)
+        .animation(reduceMotion ? nil : Motion.hover, value: isHovering)
+        .animation(reduceMotion ? nil : Motion.hover, value: isKeyboardPulsing)
+        .animation(reduceMotion ? nil : Motion.press, value: isPressed)
         .onTapGesture {
-            triggerPressPulse()
             let now = Date()
             if now.timeIntervalSince(lastTapTime) < 0.3 {
                 onActivate()
@@ -124,8 +126,25 @@ struct ClipCardView: View {
             }
             lastTapTime = now
         }
+        // 真实按下反馈：mouse-down 即 0.98，松手回弹（长按本身不触发动作）。
+        // macOS 上卡片墙滚动走 scrollWheel 事件而非拖拽手势，与此手势不冲突。
+        .onLongPressGesture(minimumDuration: 0.6, maximumDistance: 4, perform: {}, onPressingChanged: { pressing in
+            guard !reduceMotion else { return }
+            isPressed = pressing
+        })
+        .onChange(of: keyboardPulseToken) {
+            guard keyboardPulseToken != nil, !reduceMotion else { return }
+            isKeyboardPulsing = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + Motion.keyboardPulseDuration) {
+                isKeyboardPulsing = false
+            }
+        }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(clip.kind.displayName)，\(clip.title)，\(timeText)复制自 \(clip.source)")
+        // 卡片合并为单一无障碍元素后，行内 pin 按钮不再单独可达；用自定义动作补上。
+        .accessibilityAction(named: Text(clip.isPinned ? "取消固定" : "固定")) {
+            onTogglePin()
+        }
     }
 
     private var header: some View {
@@ -167,6 +186,7 @@ struct ClipCardView: View {
         .onAppear {
             loadAttachmentIfNeeded()
             loadSourceIcon()
+            loadLinkPreviewIfNeeded()
         }
     }
 
@@ -241,6 +261,11 @@ struct ClipCardView: View {
             sensitiveBody
         } else if clip.kind == .image {
             imageCanvas
+        } else if clip.kind == .file {
+            fileBody
+        } else if clip.kind == .url, linkTitle != nil || linkIcon != nil {
+            // 仅当链接预览开启且抓到标题 / 图标时才用富预览；默认与纯文本预览一致。
+            urlBody
         } else if clip.kind == .richText, let loadedRichText {
             richTextPreviewBody(loadedRichText)
         } else {
@@ -440,7 +465,8 @@ struct ClipCardView: View {
                 Image(systemName: clip.isPinned ? "pin.fill" : "pin")
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(clip.isPinned ? Color.accentColor : Color.white.opacity(0.78))
-                    .symbolEffect(.bounce, value: clip.isPinned)
+                    // Reduce Motion 时 value 恒为 false，bounce 不触发。
+                    .symbolEffect(.bounce, value: clip.isPinned && !reduceMotion)
             }
             .buttonStyle(.plain)
             .opacity(clip.isPinned || isHovering ? 1 : 0)
@@ -749,7 +775,8 @@ struct ClipCardView: View {
                 Image(systemName: clip.isPinned ? "pin.fill" : "pin")
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(clip.isPinned ? Color.accentColor : Color.secondary)
-                    .symbolEffect(.bounce, value: clip.isPinned)
+                    // Reduce Motion 时 value 恒为 false，bounce 不触发。
+                    .symbolEffect(.bounce, value: clip.isPinned && !reduceMotion)
             }
             .buttonStyle(.plain)
             .opacity(clip.isPinned || isHovering ? 1 : 0)

@@ -13,8 +13,6 @@ struct PinboardTabs: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
-    private static let slide = Animation.timingCurve(0.22, 1, 0.36, 1, duration: 0.2)
-
     var body: some View {
         GlassEffectContainer(spacing: 3) {
             HStack(spacing: 3) {
@@ -31,34 +29,37 @@ struct PinboardTabs: View {
         .glassEffect(reduceTransparency ? .identity : .regular.interactive(), in: Capsule(style: .continuous))
     }
 
+    /// 真正的 Button（而非 Text + 手势）：Full Keyboard Access / VoiceOver 可以到达。
     private func tab(_ board: QuickPanelViewModel.Board) -> some View {
         let isSelected = selection == board
 
-        return Text(board.rawValue)
-            .font(.callout.weight(.medium))
-            .foregroundStyle(isSelected ? Color.primary : Color.secondary.opacity(0.82))
-            .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: isSelected)
-            .padding(.horizontal, 12)
-            .frame(height: 28)
-            .background {
-                if isSelected {
-                    Capsule(style: .continuous)
-                        .fill(Color(nsColor: .controlBackgroundColor).opacity(0.96))
-                        .shadow(color: .black.opacity(0.10), radius: 3, x: 0, y: 1)
-                        .matchedGeometryEffect(id: "pinboardPill", in: pillNamespace)
+        return Button {
+            guard selection != board else { return }
+            if reduceMotion {
+                selection = board
+            } else {
+                withAnimation(Motion.tabSlide) {
+                    selection = board
                 }
             }
-            .contentShape(Capsule(style: .continuous))
-            .onTapGesture {
-                guard selection != board else { return }
-                if reduceMotion {
-                    selection = board
-                } else {
-                    withAnimation(Self.slide) {
-                        selection = board
+        } label: {
+            Text(board.rawValue)
+                .font(.callout.weight(.medium))
+                .foregroundStyle(isSelected ? Color.primary : Color.secondary.opacity(0.82))
+                .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: isSelected)
+                .padding(.horizontal, 12)
+                .frame(height: 28)
+                .background {
+                    if isSelected {
+                        Capsule(style: .continuous)
+                            .fill(Color(nsColor: .controlBackgroundColor).opacity(0.96))
+                            .shadow(color: .black.opacity(0.10), radius: 3, x: 0, y: 1)
+                            .matchedGeometryEffect(id: "pinboardPill", in: pillNamespace)
                     }
                 }
-            }
-            .accessibilityAddTraits(isSelected ? [.isSelected, .isButton] : .isButton)
+                .contentShape(Capsule(style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
