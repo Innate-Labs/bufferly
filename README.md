@@ -44,7 +44,7 @@
 - 📌 **固定常用内容** —— 常贴的地址、话术、链接固定到独立分区，随取随用
 - ⚡ **Return 执行** —— 可只复制到剪贴板，也可复制后粘贴到上一应用
 - 🛡️ **排除 App** —— 默认不记录 Passwords、Keychain Access、1Password、Bitwarden 等敏感来源
-- 🎨 **原生 macOS 26 体验** —— Apple Liquid Glass、语义色、SF Symbols + Tabler Icons，支持 Light / Dark、Reduce Motion
+- 🎨 **原生 macOS 26 体验** —— Apple Liquid Glass、语义色、Hugeicons 图标，支持 Light / Dark、Reduce Motion
 
 ## ⌨️ 快捷键
 

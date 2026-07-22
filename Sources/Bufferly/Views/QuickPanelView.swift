@@ -35,8 +35,6 @@ struct QuickPanelView: View {
             topBar
 
             cardWall
-
-            footerBar
         }
         .frame(maxWidth: .infinity)
         .frame(height: QuickPanelView.panelHeight)
@@ -100,8 +98,8 @@ struct QuickPanelView: View {
         }
     }
 
-    // 392 = 顶栏 + 卡片墙 + footer（DESIGN §4.1 建议高度）。
-    static let panelHeight: CGFloat = 392
+    // 364 = 顶栏(20+32) + 卡片墙(20+272+20)（DESIGN §4.1 建议高度）。
+    static let panelHeight: CGFloat = 364
 
     // MARK: - Top bar
 
@@ -122,7 +120,8 @@ struct QuickPanelView: View {
     /// 常驻玻璃搜索框（macOS 26 工具栏药丸样式）。
     private var searchField: some View {
         HStack(spacing: 8) {
-            Image(systemName: "magnifyingglass")
+            HugeIconView(name: "search-01", fallbackSystemName: "magnifyingglass")
+                .frame(width: 14, height: 14)
                 .foregroundStyle(.secondary)
 
             TextField("搜索剪贴板", text: $viewModel.query)
@@ -142,8 +141,8 @@ struct QuickPanelView: View {
                 Button {
                     viewModel.query = ""
                 } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .symbolRenderingMode(.hierarchical)
+                    HugeIconView(name: "cancel-circle", fallbackSystemName: "xmark.circle.fill")
+                        .frame(width: 14, height: 14)
                         .foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain)
@@ -288,10 +287,12 @@ struct QuickPanelView: View {
 
     private var emptyState: some View {
         VStack(spacing: 10) {
-            Image(systemName: viewModel.board == .pinned ? "pin" : "doc.on.clipboard")
-                .font(.largeTitle)
-                .symbolRenderingMode(.hierarchical)
-                .foregroundStyle(.tertiary)
+            HugeIconView(
+                name: viewModel.board == .pinned ? "pin" : "copy-01",
+                fallbackSystemName: viewModel.board == .pinned ? "pin" : "doc.on.clipboard"
+            )
+            .frame(width: 30, height: 30)
+            .foregroundStyle(.tertiary)
 
             Text(emptyMessage)
                 .font(.callout)
@@ -306,30 +307,6 @@ struct QuickPanelView: View {
         }
 
         return viewModel.board == .pinned ? "还没有固定的内容" : "复制的文字、图片、文件会出现在这里"
-    }
-
-    // MARK: - Footer
-
-    /// 常驻辅助条（DESIGN §4.7）：结果数量 + 核心按键提示，兜住引导看完就忘的用户。
-    private var footerBar: some View {
-        HStack(spacing: 12) {
-            Text("\(viewModel.filteredClips.count) 条")
-                .foregroundStyle(.secondary)
-                .monospacedDigit()
-
-            Spacer(minLength: 8)
-
-            Text("← → 选择 · 回车\(footerReturnHint) · 空格预览 · ⌘P 固定")
-                .foregroundStyle(.tertiary)
-                .lineLimit(1)
-        }
-        .font(.caption)
-        .padding(.horizontal, 20)
-        .padding(.bottom, 12)
-    }
-
-    private var footerReturnHint: String {
-        appSettings.autoPasteAfterSelection && eventPostingPermission.isGranted ? "粘贴" : "复制"
     }
 
     // MARK: - Actions
@@ -374,8 +351,8 @@ struct QuickPanelView: View {
                     .fill(banner.kind.tint.opacity(0.14))
                     .frame(width: 24, height: 24)
 
-                Image(systemName: banner.kind.symbolName)
-                    .font(.caption.weight(.semibold))
+                HugeIconView(name: banner.kind.hugeIconName, fallbackSystemName: banner.kind.symbolName)
+                    .frame(width: 13, height: 13)
                     .foregroundStyle(banner.kind.tint)
             }
 
@@ -434,8 +411,8 @@ struct QuickPanelView: View {
                 .onTapGesture { dismissOnboarding() }
 
             VStack(spacing: 14) {
-                Image(systemName: "doc.on.clipboard.fill")
-                    .font(.system(size: 34))
+                HugeIconView(name: "ai-content-generator-01", fallbackSystemName: "doc.on.clipboard.fill")
+                    .frame(width: 38, height: 38)
                     .foregroundStyle(.tint)
 
                 Text("欢迎使用 Bufferly")
@@ -521,7 +498,7 @@ struct QuickPanelView: View {
 
     private func previewHeader(for clip: ClipItem) -> some View {
         HStack(spacing: 8) {
-            TablerIconView(name: clip.kind.tablerIconName, fallbackSystemName: clip.kind.symbolName)
+            HugeIconView(name: clip.kind.hugeIconName, fallbackSystemName: clip.kind.symbolName)
                 .foregroundStyle(clip.kind.accent)
                 .frame(width: 15, height: 15)
 
@@ -796,6 +773,17 @@ private struct KeyboardPulse: Equatable {
 }
 
 private extension QuickPanelStatusKind {
+    var hugeIconName: String {
+        switch self {
+        case .success:
+            return "checkmark-circle-02"
+        case .warning:
+            return "alert-02"
+        case .info:
+            return "information-circle"
+        }
+    }
+
     var symbolName: String {
         switch self {
         case .success:

@@ -1,12 +1,14 @@
 import AppKit
 import SwiftUI
 
-struct TablerIconView: View {
+/// Hugeicons（stroke-rounded）图标视图：从 Resources/Hugeicons 加载 SVG，
+/// 以模板模式渲染，颜色跟随 foregroundStyle；资源缺失时回退 SF Symbol。
+struct HugeIconView: View {
     let name: String
     let fallbackSystemName: String
 
     var body: some View {
-        if let image = TablerIconCache.image(named: name) {
+        if let image = HugeIconCache.image(named: name) {
             Image(nsImage: image)
                 .resizable()
                 .renderingMode(.template)
@@ -20,7 +22,7 @@ struct TablerIconView: View {
 }
 
 @MainActor
-private enum TablerIconCache {
+private enum HugeIconCache {
     private static var images: [String: NSImage] = [:]
 
     static func image(named name: String) -> NSImage? {
@@ -32,7 +34,7 @@ private enum TablerIconCache {
             let url = AppResources.url(
                 forResource: name,
                 withExtension: "svg",
-                subdirectory: "TablerIcons"
+                subdirectory: "Hugeicons"
             ),
             let image = NSImage(contentsOf: url)
         else {

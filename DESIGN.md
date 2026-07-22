@@ -62,7 +62,7 @@ Quick Panel 是 Bufferly 的核心界面，按全局快捷键呼出。
 
 建议尺寸：
 
-- 高度：约 392 pt（固定）。
+- 高度：约 364 pt（固定）。
 - 宽度：按当前屏幕宽度铺开，左右各留 24 pt 边距，最大 1280 pt。
 - 卡片：宽 200 pt、高 272 pt，横向排列。
 
@@ -99,8 +99,6 @@ Quick Panel 是 Bufferly 的核心界面，按全局快捷键呼出。
 |  │preview │  │preview │  │preview │  │preview │              |
 |  │ source▸│  │ source▸│  │ source▸│  │ source▸│              |
 |  └────────┘  └────────┘  └────────┘  └────────┘              |
-+--------------------------------------------------------------+
-| Footer: count / ←→ 选择 / Return 粘贴 / ⌘P 固定 / Esc 关闭    |
 +--------------------------------------------------------------+
 ```
 
@@ -162,7 +160,7 @@ Clip Card 是卡片墙的信息单元，富预览、可扫读。
 
 建议：
 
-- 使用 Tabler outline 图标 + 极短文本。
+- 使用 Hugeicons stroke-rounded 图标 + 极短文本。
 - Badge 宽度稳定，避免列表抖动。
 - 色彩以系统 secondary/tertiary 为主。
 - 只有 Secret 使用更明确的警示语义，但仍保持克制。
@@ -191,19 +189,7 @@ Recent 是默认历史流。
 
 ### 4.7 Footer
 
-Footer 只放辅助信息。
-
-可显示：
-
-- 当前结果数量。
-- 当前选中项动作提示。
-- 敏感过滤状态，例如 `Sensitive filter on`。
-
-不要显示：
-
-- 大段帮助文本。
-- 产品宣传语。
-- 功能说明。
+> 已移除（见 §16-(i)）：自 v0.10 起 Quick Panel 不再有 footer，结果数量与按键提示不常驻展示。按键提示由首次引导覆盖层承担，搜索时的匹配数量在搜索框内胶囊显示。
 
 ## 5. 设置页
 
@@ -376,20 +362,21 @@ Dark Mode：
 
 - 不手写独立暗色 palette。
 - 使用系统语义色。
-- 验证 selected row、Secret row、footer 在深色下的对比。
+- 验证 selected row、Secret row 在深色下的对比。
 
 ## 10. 图标
 
-系统操作优先使用 SF Symbols；内容类型图标使用 Tabler Icons outline。
+全部图标统一使用 Hugeicons（stroke-rounded，免费 MIT 集），见 §16-(j)；SF Symbols 仅作为资源缺失时的运行时回退。App 图标与菜单栏图标同样取自 Hugeicons glyph，保证整体图标语言一致。
 
-建议映射：
+映射（Hugeicons 名称）：
 
-- 系统操作：Search `magnifyingglass`、Pin `pin`、Delete `trash`、Settings `gearshape`
-- 内容类型：Text `align-left`、URL `link`、JSON `braces`、Command `terminal-2`、Code `code`、Email `mail`、Image `photo`、File `file`、Rich Text `file-text`、Secret `lock`
+- 系统操作：Search `search-01`、清除 `cancel-circle`、Pin `pin`、移除 `minus-sign-circle`、空态/引导 `copy-01` / `ai-content-generator-01`
+- 状态：成功 `checkmark-circle-02`、警告 `alert-02`、信息 `information-circle`
+- 内容类型：Text `text-align-left`、URL `link-01`、JSON `third-bracket`、Command `command-line`、Code `code`、Email `mail-01`、Image `image-02`、File `file-empty-02`、Rich Text `file-02`、Secret `square-lock-01`、验证码 `lock-password`、电话 `call-02`、地址 `location-01`、账号 `user-account`
 
 图标规则：
 
-- 不手绘临时 SVG；Tabler 图标从官方 SVG 源导入并随包离线分发。
+- 不手绘临时 SVG；图标从 `@hugeicons/core-free-icons` 的数据生成 SVG，随包离线分发（`Resources/Hugeicons/`）。
 - 不使用彩色插画图标。
 - 工具按钮必须有 accessibility label。
 
@@ -654,3 +641,43 @@ MVP UI 验收：
 - 空格 Quick Look 预览与首次引导覆盖层加 120ms 出入场：scrim 淡入，浮层本体 0.98 → 1。
 - 卡片墙支持滚轮 / 触控板「纵向为主」的滚动映射为横向（Paste 惯例）；横向手势保持原生行为，预览 / 引导覆盖层期间不接管。
 - 面板呼出、搜索变化、新条目等程序性定位不播滚动动画，直接就位；所有新增动效尊重 Reduce Motion（含补上 pin 图标 bounce 的门控）。
+
+### (i) v0.10：移除 Quick Panel footer
+
+日期：2026-07-22
+决策人：项目所有者（明确指出「这俩不要」：左下结果数量与右下快捷键提示）。
+
+**改了什么**
+
+- 移除面板底部常驻辅助条（原 §4.7 footer）：左下「N 条」结果计数与右下「← → 选择 · 回车… · 空格预览 · ⌘P 固定」按键提示整条去掉。
+- 面板高度 392 pt → 364 pt，卡片墙底部 20 pt 内边距成为面板底边，其余布局不变。
+
+**为什么改**
+
+- 常驻计数与按键提示对高频使用是噪音；按键提示已有首次引导覆盖层与设置页速查承担，搜索时的匹配数量仍在搜索框内胶囊显示。
+
+**仍然保留的原则（未被本次推翻）**
+
+- 键盘优先、低打扰：快捷键本身全部保留，只是不再常驻展示提示。
+- 四周统一 20 pt 边距与同心圆角（外 34 = 卡片 14 + 边距 20）不变。
+
+### (j) v0.11：图标库统一换成 Hugeicons
+
+日期：2026-07-22
+决策人：项目所有者（「所有的 icon 都换成 Hugeicons 库里的 icon」）。
+
+**改了什么**
+
+- 内容类型图标从 Tabler Icons 换为 Hugeicons stroke-rounded（免费 MIT 集，`@hugeicons/core-free-icons` 生成 SVG 离线分发），删除 TablerIcons 资源与 `TablerIconView`。
+- 界面内原 SF Symbols 图标（搜索、清除、pin、空态、引导、状态 toast、设置移除按钮、卡片内 email/link/lock/photo/花括号等）全部换为 Hugeicons，SF Symbols 降级为资源缺失时的运行时回退。
+- pin 图标的 SF Symbol bounce 动效改为等价的 130ms 缩放脉冲（`PinButton`），仍尊重 Reduce Motion。
+- App 图标与菜单栏图标此前已换为 Hugeicons glyph（`ai-content-generator-01` solid 变体），本次让面板内图标与其保持同一图标语言。
+
+**为什么改**
+
+- 项目所有者希望全 App 图标风格统一到 Hugeicons；此前 Tabler（内容类型）+ SF Symbols（操作）+ Hugeicons（App 图标）三套混用。
+
+**因此被调整的原有条款**
+
+- §10「系统操作优先使用 SF Symbols」→ 全部图标统一 Hugeicons，SF Symbols 仅作回退。
+- v0.3 中「顶部控件改用 SF Symbols」的图标部分由本条取代；原生控件、语义色等其余原则不变。

@@ -163,7 +163,7 @@ struct ClipCardView: View {
 
             Spacer(minLength: 0)
 
-            TablerIconView(name: clip.kind.tablerIconName, fallbackSystemName: clip.kind.symbolName)
+            HugeIconView(name: clip.kind.hugeIconName, fallbackSystemName: clip.kind.symbolName)
                 .foregroundStyle(.white)
                 .frame(width: 14, height: 14)
                 .frame(width: 24, height: 24)
@@ -372,8 +372,8 @@ struct ClipCardView: View {
 
                 Spacer(minLength: 0)
 
-                Image(systemName: "curlybraces")
-                    .font(.caption2.weight(.semibold))
+                HugeIconView(name: "third-bracket", fallbackSystemName: "curlybraces")
+                    .frame(width: 11, height: 11)
                     .foregroundStyle(clip.kind.accent.opacity(0.75))
             }
 
@@ -397,9 +397,8 @@ struct ClipCardView: View {
     private var emailBody: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .top, spacing: 8) {
-                Image(systemName: "envelope.circle.fill")
-                    .font(.title3)
-                    .symbolRenderingMode(.hierarchical)
+                HugeIconView(name: "mail-01", fallbackSystemName: "envelope")
+                    .frame(width: 16, height: 16)
                     .foregroundStyle(clip.kind.accent)
 
                 Text(clip.title)
@@ -427,9 +426,8 @@ struct ClipCardView: View {
                 .frame(width: Self.width, height: Self.height - 52)
                 .clipped()
         } else {
-            Image(systemName: "photo")
-                .font(.largeTitle)
-                .symbolRenderingMode(.hierarchical)
+            HugeIconView(name: "image-02", fallbackSystemName: "photo")
+                .frame(width: 30, height: 30)
                 .foregroundStyle(.tertiary)
                 .frame(width: Self.width, height: Self.height - 52)
                 .background(Color.primary.opacity(0.04))
@@ -461,14 +459,12 @@ struct ClipCardView: View {
 
             Spacer(minLength: 4)
 
-            Button(action: onTogglePin) {
-                Image(systemName: clip.isPinned ? "pin.fill" : "pin")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(clip.isPinned ? Color.accentColor : Color.white.opacity(0.78))
-                    // Reduce Motion 时 value 恒为 false，bounce 不触发。
-                    .symbolEffect(.bounce, value: clip.isPinned && !reduceMotion)
-            }
-            .buttonStyle(.plain)
+            PinButton(
+                isPinned: clip.isPinned,
+                idleTint: .white.opacity(0.78),
+                reduceMotion: reduceMotion,
+                action: onTogglePin
+            )
             .opacity(clip.isPinned || isHovering ? 1 : 0)
             .accessibilityLabel(clip.isPinned ? "取消固定" : "固定")
         }
@@ -544,9 +540,8 @@ struct ClipCardView: View {
                         .frame(width: 17, height: 17)
                         .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
                 } else {
-                    Image(systemName: "link.circle.fill")
-                        .font(.title3)
-                        .symbolRenderingMode(.hierarchical)
+                    HugeIconView(name: "link-01", fallbackSystemName: "link")
+                        .frame(width: 16, height: 16)
                         .foregroundStyle(clip.kind.accent)
                 }
 
@@ -580,8 +575,8 @@ struct ClipCardView: View {
                         .frame(width: 16, height: 16)
                         .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
                 } else {
-                    Image(systemName: "link")
-                        .font(.caption.weight(.semibold))
+                    HugeIconView(name: "link-01", fallbackSystemName: "link")
+                        .frame(width: 12, height: 12)
                         .foregroundStyle(clip.kind.accent)
                 }
             }
@@ -730,8 +725,8 @@ struct ClipCardView: View {
 
     private var sensitiveBody: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Image(systemName: "lock.fill")
-                .font(.system(size: 18, weight: .semibold))
+            HugeIconView(name: "square-lock-01", fallbackSystemName: "lock")
+                .frame(width: 20, height: 20)
                 .foregroundStyle(.orange)
 
             Text("敏感内容已隐藏")
@@ -771,14 +766,12 @@ struct ClipCardView: View {
                     .accessibilityLabel("搜索命中\(searchMatchLabel)")
             }
 
-            Button(action: onTogglePin) {
-                Image(systemName: clip.isPinned ? "pin.fill" : "pin")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(clip.isPinned ? Color.accentColor : Color.secondary)
-                    // Reduce Motion 时 value 恒为 false，bounce 不触发。
-                    .symbolEffect(.bounce, value: clip.isPinned && !reduceMotion)
-            }
-            .buttonStyle(.plain)
+            PinButton(
+                isPinned: clip.isPinned,
+                idleTint: .secondary,
+                reduceMotion: reduceMotion,
+                action: onTogglePin
+            )
             .opacity(clip.isPinned || isHovering ? 1 : 0)
             .accessibilityLabel(clip.isPinned ? "取消固定" : "固定")
         }
@@ -797,4 +790,32 @@ struct ClipCardView: View {
     }
     .padding(40)
     .background(.regularMaterial)
+}
+
+/// pin 按钮：Hugeicons 图标 + 固定状态切换时一次轻微放大脉冲（等价原 SF Symbol bounce）。
+private struct PinButton: View {
+    let isPinned: Bool
+    let idleTint: Color
+    let reduceMotion: Bool
+    let action: () -> Void
+
+    @State private var bouncing = false
+
+    var body: some View {
+        Button(action: action) {
+            HugeIconView(name: isPinned ? "pin-solid" : "pin", fallbackSystemName: isPinned ? "pin.fill" : "pin")
+                .frame(width: 13, height: 13)
+                .foregroundStyle(isPinned ? Color.accentColor : idleTint)
+                .scaleEffect(bouncing ? 1.25 : 1)
+        }
+        .buttonStyle(.plain)
+        .onChange(of: isPinned) {
+            guard !reduceMotion else { return }
+            withAnimation(Motion.press) { bouncing = true }
+            Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(140))
+                withAnimation(Motion.press) { bouncing = false }
+            }
+        }
+    }
 }

@@ -80,36 +80,36 @@ enum ClipKind: String, CaseIterable, Identifiable {
         }
     }
 
-    var tablerIconName: String {
+    var hugeIconName: String {
         switch self {
         case .text:
-            "align-left"
+            "text-align-left"
         case .url:
-            "link"
+            "link-01"
         case .json:
-            "braces"
+            "third-bracket"
         case .command:
-            "terminal-2"
+            "command-line"
         case .code:
             "code"
         case .email:
-            "mail"
+            "mail-01"
         case .image:
-            "photo"
+            "image-02"
         case .file:
-            "file"
+            "file-empty-02"
         case .richText:
-            "file-text"
+            "file-02"
         case .secret:
-            "lock"
+            "square-lock-01"
         case .verificationCode:
-            "password"
+            "lock-password"
         case .phone:
-            "phone"
+            "call-02"
         case .address:
-            "map-pin"
+            "location-01"
         case .account:
-            "user"
+            "user-account"
         }
     }
 

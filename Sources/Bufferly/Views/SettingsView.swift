@@ -300,7 +300,8 @@ struct SettingsView: View {
                         Button {
                             removeExcluded(bundleID)
                         } label: {
-                            Image(systemName: "minus.circle.fill")
+                            HugeIconView(name: "minus-sign-circle", fallbackSystemName: "minus.circle.fill")
+                                .frame(width: 14, height: 14)
                                 .foregroundStyle(.secondary)
                         }
                         .buttonStyle(.plain)
